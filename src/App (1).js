@@ -242,6 +242,7 @@ const T = {
     cBase:"🍱 Included in every meal",cPag:"💳 Payment",cEnt:"🛵 Delivery",
   },
 };
+};
 
 const fmt = v => `CA$ ${(Number(v)||0).toFixed(2)}`;
 function fmtTel(val) {
@@ -386,6 +387,17 @@ function ObsPanel({val,onSave,onClose,t}) {
 export default function App() {
   const [lang,setLang]       = useState("pt");
   const t                    = T[lang];
+  const [cozinhaAuth,setCozinhaAuth]   = useState(false);
+  const [senhaInput,setSenhaInput]     = useState("");
+  const [senhaErro,setSenhaErro]       = useState("");
+  const [trocandoSenha,setTrocandoSenha] = useState(false);
+  const [senhaAtual,setSenhaAtual]     = useState("");
+  const [senhaNova,setSenhaNova]       = useState("");
+  const [senhaConfirm,setSenhaConfirm] = useState("");
+  const [senhaMsg,setSenhaMsg]         = useState("");
+  const SENHA_KEY = "tdv_senha";
+  function getSenha() { try { return localStorage.getItem(SENHA_KEY)||"Gitorres11121984"; } catch(_){ return "Gitorres11121984"; } }
+  function setSenha(s) { try { localStorage.setItem(SENHA_KEY,s); } catch(_){} }
   const [menuDia,setMenuDia] = useState({pratos:PRATOS_BASE,aviso:""});
   const PRATOS               = menuDia.pratos;
   const [editando,setEditando]   = useState(false);
@@ -420,10 +432,10 @@ export default function App() {
   useEffect(()=>{ const id=setInterval(()=>setTick(n=>n+1),60000); return()=>clearInterval(id); },[]);
   useEffect(()=>{ if(pedidos.length>prev.current){beep();try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(_){}} prev.current=pedidos.length; },[pedidos.length]);
 
-  const expirou  = prazoExpirou();
-  const restante = tempoRestante();
-  const lembrete = deveEnviarLembrete();
-  const pratoFixo = expirou ? pratoMaisVotado(votos,[...CARDAPIO.carne,...CARDAPIO.veg]) : null;
+  const expirou  = false; // MODO TESTE
+  const restante = "23h 45min"; // MODO TESTE
+  const lembrete = true; // MODO TESTE
+  const pratoFixo = null;
 
   const itens = useMemo(()=>
     Object.entries(carrinho).filter(([,q])=>q>0).map(([id,qty])=>{
@@ -594,7 +606,7 @@ export default function App() {
               </div>
             )}
 
-            {(expirou?(pratoFixo?[pratoFixo]:PRATOS.slice(0,1)):PRATOS).map(p=>{
+            {PRATOS.map(p=>{
               const q=carrinho[p.id]||0, painelObs=obsAberto===p.id, temObs=obs[p.id]?.trim();
               return (
                 <div key={p.id} style={s.pratoCard}>
@@ -667,6 +679,17 @@ export default function App() {
               </div>
               {votoFeito&&!expirou&&<div style={{fontSize:12,color:O,textAlign:"center",padding:8,background:CA,borderRadius:8,border:`1px solid ${BL}`,marginTop:8}}>{t.votObrig}</div>}
             </div>
+            {/* Botão flutuante carrinho */}
+            {nCart>0&&(
+              <div style={{position:"sticky",bottom:0,padding:"10px 0 4px",background:`linear-gradient(transparent, ${P} 60%)`}}>
+                <button onClick={()=>setAba("carrinho")}
+                  style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:VE,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span>🛒</span>
+                  <span>Ver carrinho ({nCart} {nCart===1?"item":"itens"}) — {fmt(sub)}</span>
+                  <span>→</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -710,7 +733,9 @@ export default function App() {
                     <span style={{fontWeight:700,fontSize:17,color:O}}>{fmt(total)}</span>
                   </div>
                 </div>
-                <button style={s.btnPrinc} onClick={()=>setCheckout(true)}>{t.pedir}</button>
+                <button style={{...s.btnPrinc,background:VE,fontSize:16,padding:"15px 0",marginTop:4}} onClick={()=>setCheckout(true)}>
+                  🛒 {t.pedir}
+                </button>
               </>
             }
           </div>
@@ -873,6 +898,55 @@ export default function App() {
 
         {aba==="cozinha"&&(
           <div>
+            {!cozinhaAuth
+              ? <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 20px"}}>
+                  <div style={{background:CA,border:`1px solid ${BL}`,borderRadius:20,padding:"32px 24px",width:"100%",maxWidth:360,textAlign:"center"}}>
+                    <div style={{fontSize:40,marginBottom:12}}>👩‍🍳</div>
+                    <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:22,color:O,marginBottom:6}}>Área da Cozinha</div>
+                    <div style={{fontSize:13,color:MU,marginBottom:20}}>Digite a senha para continuar</div>
+                    <input type="password" value={senhaInput} onChange={e=>setSenhaInput(e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter"){if(senhaInput===getSenha()){setCozinhaAuth(true);setSenhaInput("");setSenhaErro("");}else{setSenhaErro("Senha incorreta. Tente novamente.");}}}
+                      }
+                      placeholder="••••••••••••••••"
+                      style={{...s.inp,textAlign:"center",fontSize:18,letterSpacing:"0.2em",marginBottom:8}}/>
+                    {senhaErro&&<div style={{color:"#E05050",fontSize:12,marginBottom:8}}>{senhaErro}</div>}
+                    <button style={s.btnPrinc} onClick={()=>{
+                      if(senhaInput===getSenha()){setCozinhaAuth(true);setSenhaInput("");setSenhaErro("");}
+                      else{setSenhaErro("Senha incorreta. Tente novamente.");}
+                    }}>Entrar</button>
+                  </div>
+                </div>
+              : <div>
+                  {/* Botão trocar senha */}
+                  <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+                    <button onClick={()=>{setTrocandoSenha(true);setSenhaAtual("");setSenhaNova("");setSenhaConfirm("");setSenhaMsg("");}}
+                      style={{fontSize:12,color:MU,background:"transparent",border:`1px solid ${BL}`,borderRadius:20,padding:"5px 12px",cursor:"pointer"}}>
+                      🔑 Alterar senha
+                    </button>
+                  </div>
+                  {trocandoSenha&&(
+                    <div style={{...s.card,marginBottom:14,border:`1px solid ${O}`}}>
+                      <div style={{fontWeight:700,fontSize:13,color:O,marginBottom:10}}>🔑 Alterar senha</div>
+                      <label style={s.lbl}>Senha atual</label>
+                      <input type="password" style={s.inp} value={senhaAtual} onChange={e=>setSenhaAtual(e.target.value)} placeholder="••••••••••••••••"/>
+                      <label style={s.lbl}>Nova senha</label>
+                      <input type="password" style={s.inp} value={senhaNova} onChange={e=>setSenhaNova(e.target.value)} placeholder="Mínimo 8 caracteres"/>
+                      <label style={s.lbl}>Confirmar nova senha</label>
+                      <input type="password" style={s.inp} value={senhaConfirm} onChange={e=>setSenhaConfirm(e.target.value)} placeholder="Repita a nova senha"/>
+                      {senhaMsg&&<div style={{fontSize:12,color:senhaMsg.includes("✅")?"#3A8A30":"#E05050",margin:"8px 0"}}>{senhaMsg}</div>}
+                      <div style={{display:"flex",gap:8,marginTop:10}}>
+                        <button style={{...s.btnPrinc,background:OE}} onClick={()=>{
+                          if(senhaAtual!==getSenha()){setSenhaMsg("❌ Senha atual incorreta.");return;}
+                          if(senhaNova.length<8){setSenhaMsg("❌ A nova senha deve ter pelo menos 8 caracteres.");return;}
+                          if(senhaNova!==senhaConfirm){setSenhaMsg("❌ As senhas não coincidem.");return;}
+                          setSenha(senhaNova);
+                          setSenhaMsg("✅ Senha alterada com sucesso!");
+                          setTimeout(()=>setTrocandoSenha(false),2000);
+                        }}>Salvar</button>
+                        <button style={{...s.btnPrinc,background:"transparent",border:`1px solid ${BL}`,color:MU}} onClick={()=>setTrocandoSenha(false)}>Cancelar</button>
+                      </div>
+                    </div>
+                  )}
             {lembrete&&(
               <div style={{...s.card,border:`2px solid ${O}`,marginBottom:14}}>
                 <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
@@ -1068,7 +1142,7 @@ export default function App() {
           {icon:"🧾",idx:2,id:"pedidos",badge:novos,onClick:()=>{setAba("pedidos");setNovos(0);}},
           {icon:"⭐",idx:3,id:"especial"},
           {icon:"💬",idx:4,id:"feedback"},
-          {icon:"👩‍🍳",idx:5,id:"cozinha"},
+          {icon:"👩‍🍳",idx:5,id:"cozinha",onClick:()=>{setCozinhaAuth(false);setSenhaInput("");setSenhaErro("");setAba("cozinha");}},
           {icon:"💰",idx:6,id:"caixa"},
         ].map(tb=>(
           <Tab key={tb.id} icon={tb.icon} label={NAV[tb.idx]} ativo={aba===tb.id}

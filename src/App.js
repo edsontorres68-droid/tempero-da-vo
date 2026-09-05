@@ -7,7 +7,7 @@ if (typeof document !== "undefined" && !document.getElementById("tdv-font")) {
   document.head.appendChild(l);
 }
 
-const SEU_WHATSAPP  = "16478634945"; // ← Coloque aqui o número da Gi com código do país (sem + e sem espaços)
+const SEU_WHATSAPP  = "16478634945";
 const TAXA_ENTREGA  = 8.0;
 const PRECO_100G    = 4.0;
 const TEMPO_ENT     = 45;
@@ -413,6 +413,7 @@ export default function App() {
   const [enviando,setEnviando]   = useState(null);
   const [fbAberto,setFbAberto]   = useState(null);
   const [fbTxt,setFbTxt]         = useState("");
+  // eslint-disable-next-line no-unused-vars
   const [tick,setTick]           = useState(0);
   const prev = useRef(0);
 

@@ -1248,8 +1248,8 @@ export default function App() {
       </nav>
 
       {pinAberto&&(
-        <div style={s.overlay} onClick={()=>{setPinAberto(false);setPinInput("");setPinErro("");}}>
-          <div style={{...s.modal,maxWidth:320,borderRadius:24,padding:"28px 24px"}} onClick={e=>e.stopPropagation()}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}} onClick={()=>{setPinAberto(false);setPinInput("");setPinErro("");}}>
+          <div style={{background:"#1A1408",borderRadius:24,padding:"28px 24px",width:300,border:`1.5px solid ${O}`}} onClick={e=>e.stopPropagation()}>
             <div style={{textAlign:"center",marginBottom:16}}>
               <div style={{fontSize:36,marginBottom:6}}>🔐</div>
               <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:20,color:OE}}>Área da Cozinha</div>
@@ -1266,12 +1266,12 @@ export default function App() {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
               {["1","2","3","4","5","6","7","8","9","","0","⌫"].map(d=>(
                 <button key={d} onClick={()=>{ if(d==="⌫") setPinInput(p=>p.slice(0,-1)); else if(d) digitarPin(d); }}
-                  style={{padding:"16px 0",borderRadius:12,border:d?"none":"none",background:d==="⌫"?"#2A1F00":d?"#1A1408":"transparent",color:d==="⌫"?"#E05050":OE,fontSize:d==="⌫"?20:22,fontWeight:700,cursor:d?"pointer":"default",opacity:d?1:0}}>
+                  style={{padding:"16px 0",borderRadius:12,border:"none",background:d==="⌫"?"#3A1010":d?"#2A1F00":"transparent",color:d==="⌫"?"#E05050":d?O:"transparent",fontSize:d==="⌫"?20:22,fontWeight:700,cursor:d?"pointer":"default"}}>
                   {d}
                 </button>
               ))}
             </div>
-            <button style={{width:"100%",marginTop:16,padding:"10px 0",borderRadius:12,border:"none",background:"transparent",color:"#9A8050",fontSize:13,cursor:"pointer"}} onClick={()=>{setPinAberto(false);setPinInput("");setPinErro("");}}>Cancelar</button>
+            <button style={{width:"100%",marginTop:16,padding:"10px 0",borderRadius:12,border:"none",background:"transparent",color:MU,fontSize:13,cursor:"pointer"}} onClick={()=>{setPinAberto(false);setPinInput("");setPinErro("");}}>Cancelar</button>
           </div>
         </div>
       )}

@@ -435,6 +435,32 @@ function ObsPanel({val,onSave,onClose,t}) {
 export default function App() {
   const [lang,setLang]       = useState("pt");
   const t                    = T[lang];
+  const [cozinhaVisivel,setCozinhaVisivel] = useState(false);
+  const [pinAberto,setPinAberto]           = useState(false);
+  const [pinInput,setPinInput]             = useState("");
+  const [pinErro,setPinErro]               = useState("");
+  const PIN_COZINHA = "1984";
+
+  function abrirPin() { setPinAberto(true); setPinInput(""); setPinErro(""); }
+  function digitarPin(d) {
+    const novo = pinInput + d;
+    setPinInput(novo);
+    if (novo.length === 4) {
+      if (novo === PIN_COZINHA) {
+        setPinAberto(false);
+        setCozinhaVisivel(true);
+        setAba("cozinha");
+        setCozinhaAuth(false);
+        setSenhaInput("");
+        setSenhaErro("");
+        setPinInput("");
+        setPinErro("");
+      } else {
+        setPinErro("PIN incorreto");
+        setTimeout(() => { setPinInput(""); setPinErro(""); }, 1000);
+      }
+    }
+  }
   const [cozinhaAuth,setCozinhaAuth]   = useState(false);
   const [senhaInput,setSenhaInput]     = useState("");
   const [senhaErro,setSenhaErro]       = useState("");
@@ -594,10 +620,11 @@ export default function App() {
       )}
 
       <header style={s.header}>
-        <div style={s.logo}><IcoPanel size={26}/></div>
+        <div style={{...s.logo,cursor:"pointer",userSelect:"none"}} onClick={abrirPin}><IcoPanel size={26}/></div>
         <div style={{flex:1}}>
           <div style={s.marca}>Tempero da Vó</div>
           <div style={s.sub}>{t.sub}</div>
+
         </div>
         <button style={s.langBtn} onClick={()=>setLang(t.langOther)}>
           {t.langOther==="en"?"🇧🇷 PT":"🇨🇦 EN"}
@@ -850,12 +877,30 @@ export default function App() {
                   </div>
                   {p.alergia&&!p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}><button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,ciente:true}:x))} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#A03030",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.ciente}</button></div>}
                   {p.alergia&&p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13}}>✅</span><span style={{fontSize:11.5,color:"#3A8A30",fontWeight:600}}>{t.cienteOk}</span></div>}
+                  {/* Botão confirmar recebimento ao cliente */}
+                  {!p.confirmadoCliente&&(
+                    <div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}>
+                      <button onClick={()=>{
+                        const msg=`✅ *Pedido #${p.num} recebido!*\n\nOlá, ${p.cliente}! 🍱\n\nSeu pedido foi recebido e já está sendo preparado com carinho.\n\n⏱ Previsão: *${p.previsao}*\n${p.tipo==="entrega"?"🛵 Entrega no seu endereço":"🏠 Retirada"}\n\nObrigada pela preferência! 💛\n\n— Tempero da Vó`;
+                        window.open(`https://wa.me/55${p.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msg)}`,"_blank");
+                        setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,confirmadoCliente:true}:x));
+                      }} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#25D366",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                        <span>💬</span> Confirmar pedido ao cliente (WhatsApp)
+                      </button>
+                    </div>
+                  )}
+                  {p.confirmadoCliente&&(
+                    <div style={{borderTop:`1px solid ${BL}`,padding:"6px 12px",display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{fontSize:13}}>✅</span>
+                      <span style={{fontSize:11.5,color:"#3A8A30",fontWeight:600}}>Cliente confirmado — previsão {p.previsao}</span>
+                    </div>
+                  )}
                   {(!p.entregue||!p.pago)&&(
                     <div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px",display:"flex",gap:8}}>
                       {!p.entregue&&<button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,entregue:true}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #3A8A30`,background:"transparent",color:"#3A8A30",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.marcarEnt}</button>}
                       {p.entregue&&!p.pago&&<>
                         <button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,pago:true}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:"none",background:"#3A8A30",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.confirmarPag}</button>
-                        <button style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #E05050`,background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.naoPago}</button>
+                        <button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,pago:true}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #E05050`,background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.naoPago}</button>
                       </>}
                     </div>
                   )}
@@ -965,8 +1010,12 @@ export default function App() {
                   </div>
                 </div>
               : <div>
-                  {/* Botão trocar senha */}
-                  <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+                  {/* Botões topo cozinha */}
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:12,alignItems:"center"}}>
+                    <button onClick={()=>{setCozinhaVisivel(false);setAba("cardapio");setCozinhaAuth(false);}}
+                      style={{fontSize:11,color:"#E05050",background:"transparent",border:"1px solid #E0505044",borderRadius:20,padding:"5px 12px",cursor:"pointer"}}>
+                      🔒 Sair da cozinha
+                    </button>
                     <button onClick={()=>{setTrocandoSenha(true);setSenhaAtual("");setSenhaNova("");setSenhaConfirm("");setSenhaMsg("");}}
                       style={{fontSize:12,color:MU,background:"transparent",border:`1px solid ${BL}`,borderRadius:20,padding:"5px 12px",cursor:"pointer"}}>
                       🔑 Alterar senha
@@ -1190,13 +1239,42 @@ export default function App() {
           {icon:"🧾",idx:2,id:"pedidos",badge:novos,onClick:()=>{setAba("pedidos");setNovos(0);}},
           {icon:"⭐",idx:3,id:"especial"},
           {icon:"💬",idx:4,id:"feedback"},
-          {icon:"👩‍🍳",idx:5,id:"cozinha",onClick:()=>{setCozinhaAuth(false);setSenhaInput("");setSenhaErro("");setAba("cozinha");}},
+          ...(cozinhaVisivel?[{icon:"👩‍🍳",idx:5,id:"cozinha",onClick:()=>{setCozinhaAuth(false);setSenhaInput("");setSenhaErro("");setAba("cozinha");}}]:[]),
           {icon:"💰",idx:6,id:"caixa"},
         ].map(tb=>(
           <Tab key={tb.id} icon={tb.icon} label={NAV[tb.idx]} ativo={aba===tb.id}
             onClick={tb.onClick||(()=>setAba(tb.id))} badge={tb.badge||0}/>
         ))}
       </nav>
+
+      {pinAberto&&(
+        <div style={s.overlay} onClick={()=>{setPinAberto(false);setPinInput("");setPinErro("");}}>
+          <div style={{...s.modal,maxWidth:320,borderRadius:24,padding:"28px 24px"}} onClick={e=>e.stopPropagation()}>
+            <div style={{textAlign:"center",marginBottom:16}}>
+              <div style={{fontSize:36,marginBottom:6}}>🔐</div>
+              <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:20,color:OE}}>Área da Cozinha</div>
+              <div style={{fontSize:13,color:"#9A8050",marginTop:4}}>Digite o PIN de acesso</div>
+            </div>
+            {/* PIN dots display */}
+            <div style={{display:"flex",justifyContent:"center",gap:16,marginBottom:20}}>
+              {[0,1,2,3].map(i=>(
+                <div key={i} style={{width:18,height:18,borderRadius:"50%",background:pinInput.length>i?OE:"transparent",border:`2px solid ${OE}`,transition:"all .15s"}}/>
+              ))}
+            </div>
+            {pinErro&&<div style={{color:"#E05050",fontSize:13,textAlign:"center",marginBottom:10,fontWeight:600}}>{pinErro}</div>}
+            {/* PIN keypad */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
+              {["1","2","3","4","5","6","7","8","9","","0","⌫"].map(d=>(
+                <button key={d} onClick={()=>{ if(d==="⌫") setPinInput(p=>p.slice(0,-1)); else if(d) digitarPin(d); }}
+                  style={{padding:"16px 0",borderRadius:12,border:d?"none":"none",background:d==="⌫"?"#2A1F00":d?"#1A1408":"transparent",color:d==="⌫"?"#E05050":OE,fontSize:d==="⌫"?20:22,fontWeight:700,cursor:d?"pointer":"default",opacity:d?1:0}}>
+                  {d}
+                </button>
+              ))}
+            </div>
+            <button style={{width:"100%",marginTop:16,padding:"10px 0",borderRadius:12,border:"none",background:"transparent",color:"#9A8050",fontSize:13,cursor:"pointer"}} onClick={()=>{setPinAberto(false);setPinInput("");setPinErro("");}}>Cancelar</button>
+          </div>
+        </div>
+      )}
 
       {checkout&&(
         <div style={s.overlay}>

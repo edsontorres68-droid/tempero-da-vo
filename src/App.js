@@ -254,20 +254,68 @@ function fmtTel(val) {
 const horaEst = min => { const d = new Date(Date.now()+min*60000); return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
 function beep() { try { const c=new(window.AudioContext||window.webkitAudioContext)(); [0,.15,.3].forEach((t,i)=>{ const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=880-i*80; g.gain.setValueAtTime(.4,c.currentTime+t); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+t+.6); o.start(c.currentTime+t);o.stop(c.currentTime+t+.6); }); } catch(_){} }
 
+// ── Prazo de votação ─────────────────────────────────────────────────────────
+// Abre: Domingo às 12h (meio dia)
+// Fecha: Sexta-feira às 18h (6 da tarde)
+// Horário de Toronto (America/Toronto = EST/EDT)
+
+function getTorontoDate() {
+  // Converte hora atual para Toronto
+  const now = new Date();
+  const toronto = new Date(now.toLocaleString("en-US", {timeZone:"America/Toronto"}));
+  return toronto;
+}
+
 function calcPrazo() {
-  const now=new Date(), d=now.getDay(), h=now.getHours();
-  const diffs=DIAS_ENVIO.map(de=>{ let diff=((d-de)+7)%7; if(diff===0&&h>=HORA_PRAZO) diff=0; else if(diff===0) diff=7; return diff; });
-  const ref=new Date(now); ref.setDate(ref.getDate()-Math.min(...diffs)); ref.setHours(HORA_PRAZO,0,0,0);
-  const prazo=new Date(ref); prazo.setDate(prazo.getDate()+1);
+  const now = getTorontoDate();
+  const d = now.getDay(); // 0=Dom, 5=Sex
+  const h = now.getHours();
+  const m = now.getMinutes();
+
+  // Próxima sexta às 18h
+  let prazo = new Date(now);
+  // Quantos dias até sexta (5)?
+  let diasAteSex = (5 - d + 7) % 7;
+  // Se já é sexta e ainda não são 18h, prazo é hoje às 18h
+  if (d === 5 && (h < 18 || (h === 18 && m === 0))) diasAteSex = 0;
+  // Se é sexta após 18h, próxima sexta = 7 dias
+  if (d === 5 && h >= 18) diasAteSex = 7;
+  
+  prazo.setDate(prazo.getDate() + diasAteSex);
+  prazo.setHours(18, 0, 0, 0);
   return prazo;
 }
-const prazoExpirou = () => new Date()>=calcPrazo();
-function tempoRestante() {
-  const diff=calcPrazo()-new Date(); if(diff<=0) return null;
-  const h=Math.floor(diff/3600000),m=Math.floor((diff%3600000)/60000);
-  return h>=24?`${Math.floor(h/24)}d ${h%24}h`:`${h}h ${m}min`;
+
+function votacaoAberta() {
+  const now = getTorontoDate();
+  const d = now.getDay();
+  const h = now.getHours();
+  // Aberto de domingo (0) meio dia até sexta (5) às 18h
+  if (d === 0 && h >= 12) return true; // domingo após 12h
+  if (d >= 1 && d <= 4) return true;   // segunda a quinta
+  if (d === 5 && h < 18) return true;  // sexta antes das 18h
+  return false;
 }
-const deveEnviarLembrete = () => { const now=new Date(); return DIAS_ENVIO.includes(now.getDay())&&now.getHours()>=HORA_PRAZO&&now.getHours()<HORA_PRAZO+1; };
+
+const prazoExpirou = () => !votacaoAberta();
+
+function tempoRestante() {
+  if (!votacaoAberta()) return null;
+  const diff = calcPrazo() - getTorontoDate();
+  if (diff <= 0) return null;
+  const dias = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (dias > 0) return `${dias}d ${h}h`;
+  return `${h}h ${m}min`;
+}
+
+// Lembrete: domingo às 12h (hora de abrir a votação e avisar clientes)
+const deveEnviarLembrete = () => {
+  const now = getTorontoDate();
+  return now.getDay() === 0 && now.getHours() >= 12 && now.getHours() < 13;
+};
+
 const pratoMaisVotado = (votos,pratos) => { if(!pratos?.length) return null; return pratos.reduce((best,p)=>(votos[p.id]||0)>(votos[best.id]||0)?p:best,pratos[0]); };
 
 const P=`#0A0A0A`,O=`#C9A84C`,OE=`#7A5A1A`,CR=`#F5EDD5`,CA=`#1A1408`,TI=`#F5EDD5`,MU=`#9A8050`,BO=`#3A2E10`,BL=`#C9A84C44`,VE=`#25D366`;
@@ -432,10 +480,10 @@ export default function App() {
   useEffect(()=>{ const id=setInterval(()=>setTick(n=>n+1),60000); return()=>clearInterval(id); },[]);
   useEffect(()=>{ if(pedidos.length>prev.current){beep();try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(_){}} prev.current=pedidos.length; },[pedidos.length]);
 
-  const expirou  = false; // MODO TESTE
-  const restante = "23h 45min"; // MODO TESTE
-  const lembrete = true; // MODO TESTE
-  const pratoFixo = null;
+  const expirou  = prazoExpirou();
+  const restante = tempoRestante();
+  const lembrete = deveEnviarLembrete();
+  const pratoFixo = expirou ? pratoMaisVotado(votos,[...CARDAPIO.carne,...CARDAPIO.veg]) : null;
 
   const itens = useMemo(()=>
     Object.entries(carrinho).filter(([,q])=>q>0).map(([id,qty])=>{
@@ -606,7 +654,7 @@ export default function App() {
               </div>
             )}
 
-            {PRATOS.map(p=>{
+            {(expirou?(pratoFixo?[pratoFixo]:PRATOS.slice(0,1)):PRATOS).map(p=>{
               const q=carrinho[p.id]||0, painelObs=obsAberto===p.id, temObs=obs[p.id]?.trim();
               return (
                 <div key={p.id} style={s.pratoCard}>

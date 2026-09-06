@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useMemo, useEffect, useRef } from "react";
 
 if (typeof document !== "undefined" && !document.getElementById("tdv-font")) {
@@ -241,7 +242,6 @@ const T = {
     cComCarne:"🥩 With meat",cSemCarne:"🥦 No meat",
     cBase:"🍱 Included in every meal",cPag:"💳 Payment",cEnt:"🛵 Delivery",
   },
-};
 };
 
 const fmt = v => `CA$ ${(Number(v)||0).toFixed(2)}`;

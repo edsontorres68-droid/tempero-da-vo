@@ -641,8 +641,14 @@ function AppInner() {
   const [novos,setNovos]         = useState(0);
   const [votosSug,setVotosSug]         = useState({segunda:{},quarta:{},sexta:{}});
   const [votoFeitoSug,setVotoFeitoSug] = useState(()=>{
-    try{ const v=JSON.parse(localStorage.getItem("votoFeitoSemana")||"null"); if(v) return v; }catch(_){}
-    return {segunda:null,quarta:null,sexta:null};
+    const limpo={segunda:null,quarta:null,sexta:null};
+    try{
+      const v=JSON.parse(localStorage.getItem("votoFeitoSemana")||"null");
+      if(v&&typeof v==="object"){
+        for(const k of ["segunda","quarta","sexta"]){ if(Array.isArray(v[k])&&v[k].length===2) limpo[k]=v[k]; }
+      }
+    }catch(_){}
+    return limpo;
   });
   const [selecaoDia,setSelecaoDia] = useState({segunda:[],quarta:[],sexta:[]});
   const [diaAberto,setDiaAberto] = useState(null);
@@ -965,7 +971,7 @@ function AppInner() {
                           ?<span style={{fontSize:11,color:"#3A8A30",fontWeight:700}}>✓ {t.votado}</span>
                           :<span style={{fontSize:11,color:MU}}>{aberto?"▲":"▼"} {t.sugEscolher}</span>}
                       </button>
-                      {votado&&(
+                      {Array.isArray(votado)&&(
                         <div style={{padding:"0 12px 10px",fontSize:12,color:TI}}>
                           {votado.map(id=>dishById(id)?.nome).filter(Boolean).join(" · ")}
                         </div>

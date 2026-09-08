@@ -17,6 +17,43 @@ const GORJETAS      = [0,5,10,15];
 const DIAS_ENVIO    = [6,1,3];
 const HORA_PRAZO    = 10;
 
+// CEP de partida (cozinha da Gi) para cálculo de distância do frete
+const CEP_COZINHA   = "M9N3G8";
+// Faixas de frete por distância (em km) — ajuste os valores aqui
+const FAIXAS_FRETE  = [
+  {ateKm:3,  valor:5},
+  {ateKm:6,  valor:8},
+  {ateKm:10, valor:12},
+  {ateKm:Infinity, valor:18},
+];
+const FRETE_MINIMO  = 6.0;
+function freteParaDistancia(km){
+  const faixa = FAIXAS_FRETE.find(f=>km<=f.ateKm);
+  const valor = faixa ? faixa.valor : FAIXAS_FRETE[FAIXAS_FRETE.length-1].valor;
+  return Math.max(valor,FRETE_MINIMO);
+}
+const _geoCache = {};
+async function geocodeFSA(cep){
+  const fsa = (cep||"").replace(/\s/g,"").toUpperCase().slice(0,3);
+  if(fsa.length<3) throw new Error("cep curto");
+  if(_geoCache[fsa]) return _geoCache[fsa];
+  const res = await fetch(`https://api.zippopotam.us/CA/${fsa}`);
+  if(!res.ok) throw new Error("cep invalido");
+  const data = await res.json();
+  const place = data.places && data.places[0];
+  if(!place) throw new Error("sem local");
+  const geo = {lat:parseFloat(place.latitude), lon:parseFloat(place.longitude)};
+  _geoCache[fsa] = geo;
+  return geo;
+}
+function haversineKm(lat1,lon1,lat2,lon2){
+  const R=6371;
+  const dLat=(lat2-lat1)*Math.PI/180;
+  const dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
 const PRATOS_BASE = [
   {id:"p1",nome:"Frango grelhado",desc:"Arroz, feijão, salada e frango grelhado ao molho.",preco:35,icon:"frango"},
   {id:"p2",nome:"Bife acebolado", desc:"Arroz, feijão, salada e bife acebolado.",          preco:35,icon:"carne"},
@@ -87,7 +124,11 @@ const T = {
     pedir:"Pedir pelo WhatsApp 💬",
     subtotal:"Subtotal",freteLabel:"Taxa de entrega",gorjetaLabel:"💛 Gorjeta",
     semGorjeta:"Nenhuma",totalLabel:"Total",gratis:"Grátis",
-    confirmarTit:"Confirmar pedido",nomeLabel:"Seu nome",nomePh:"Ex: Maria",
+    gorjetaOutro:"💲 Outro valor",gorjetaOutroPh:"Valor (CA$)",doCep:"da cozinha",
+    cadastrarBanner:"Cadastre seus dados para ver o valor da entrega",
+    cadastrarTit:"Seus dados",cadastrarSub:"Preencha uma vez — usamos para calcular sua entrega.",
+    continuar:"Continuar",seguirBtn:"Seguir para o carrinho",
+    confirmarTit:"Confirmar pedido",nomeLabel:"Seu nome",nomePh:"Ex: Maria",naoVoce:"🗑 Não é você? Limpar",
     telLabel:"Telefone",telPh:"(647) 000-0000",
     pagLabel:"Pagamento",tipoLabel:"Tipo de entrega",endLabel:"Endereço",endPh:"123 Main St, Apt 4, Toronto, ON M5V 1A1",
     pEt:"e-Transfer",pDin:"Dinheiro",pCart:"Cartão",
@@ -175,7 +216,11 @@ const T = {
     pedir:"Order via WhatsApp 💬",
     subtotal:"Subtotal",freteLabel:"Delivery fee",gorjetaLabel:"💛 Tip",
     semGorjeta:"No tip",totalLabel:"Total",gratis:"Free",
-    confirmarTit:"Confirm order",nomeLabel:"Your name",nomePh:"Ex: Maria",
+    gorjetaOutro:"💲 Custom amount",gorjetaOutroPh:"Amount (CA$)",doCep:"from the kitchen",
+    cadastrarBanner:"Register your info to see the delivery fee",
+    cadastrarTit:"Your info",cadastrarSub:"Fill in once — we use it to calculate your delivery.",
+    continuar:"Continue",seguirBtn:"Continue to cart",
+    confirmarTit:"Confirm order",nomeLabel:"Your name",nomePh:"Ex: Maria",naoVoce:"🗑 Not you? Clear",
     telLabel:"Phone",telPh:"(647) 999-9999",
     pagLabel:"Payment",tipoLabel:"Delivery type",endLabel:"Address",endPh:"123 Main St, Apt 4, Toronto, ON M5V 1A1",
     pEt:"e-Transfer",pDin:"Cash",pCart:"Card",
@@ -484,10 +529,21 @@ export default function App() {
   const [pedidos,setPedidos]     = useState([]);
   const [clientes,setClientes]   = useState([]);
   const [especiais,setEspeciais] = useState([]);
-  const [form,setForm]           = useState({nome:"",tel:"",tipo:"entrega",end:"",endCity:"",endProv:"",endCep:"",pag:"etransfer",alergia:null,alergiaDesc:""});
+  const [form,setForm]           = useState(()=>{
+    try{
+      const salvo=JSON.parse(localStorage.getItem("dadosCliente")||"null");
+      if(salvo) return {nome:"",tel:"",tipo:"entrega",pag:"etransfer",alergia:null,alergiaDesc:"",...salvo};
+    }catch(_){}
+    return {nome:"",tel:"",tipo:"entrega",end:"",endCity:"",endProv:"",endCep:"",pag:"etransfer",alergia:null,alergiaDesc:""};
+  });
   const [especForm,setEspecForm] = useState({nome:"",tel:"",desc:"",obs:""});
   const [especErro,setEspecErro] = useState("");
   const [gorjeta,setGorjeta]     = useState(0);
+  const [gorjetaModo,setGorjetaModo] = useState("percent");
+  const [gorjetaCustom,setGorjetaCustom] = useState("");
+  const [distanciaKm,setDistanciaKm] = useState(null);
+  const [freteStatus,setFreteStatus] = useState("idle"); // idle | calculando | ok | erro
+  const [dadosPreModal,setDadosPreModal] = useState(false);
   const [erro,setErro]           = useState("");
   const [checkout,setCheckout]   = useState(false);
   const [alerta,setAlerta]       = useState(null);
@@ -504,6 +560,22 @@ export default function App() {
   const prev = useRef(0);
 
   useEffect(()=>{ const id=setInterval(()=>setTick(n=>n+1),60000); return()=>clearInterval(id); },[]);
+  useEffect(()=>{
+    if(form.tipo!=="entrega"){ setFreteStatus("idle"); setDistanciaKm(null); return; }
+    const cep=(form.endCep||"").replace(/\s/g,"").toUpperCase();
+    if(cep.length<3){ setFreteStatus("idle"); setDistanciaKm(null); return; }
+    let cancelado=false;
+    setFreteStatus("calculando");
+    (async()=>{
+      try{
+        const [origem,destino]=await Promise.all([geocodeFSA(CEP_COZINHA),geocodeFSA(cep)]);
+        if(cancelado) return;
+        setDistanciaKm(haversineKm(origem.lat,origem.lon,destino.lat,destino.lon));
+        setFreteStatus("ok");
+      }catch(_){ if(!cancelado){ setDistanciaKm(null); setFreteStatus("erro"); } }
+    })();
+    return ()=>{cancelado=true;};
+  },[form.endCep,form.tipo]);
   useEffect(()=>{ if(pedidos.length>prev.current){beep();try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(_){}} prev.current=pedidos.length; },[pedidos.length]);
 
   const expirou  = prazoExpirou();
@@ -519,8 +591,9 @@ export default function App() {
     }).filter(Boolean),[carrinho,obs,extra,PRATOS]);
 
   const sub   = itens.reduce((s,i)=>s+i.preco*i.qty,0);
-  const frete = form.tipo==="entrega"?TAXA_ENTREGA:0;
-  const gVal  = Math.round(sub*gorjeta)/100;
+  const frete = form.tipo!=="entrega" ? 0 : (distanciaKm!=null ? freteParaDistancia(distanciaKm) : Math.max(TAXA_ENTREGA,FRETE_MINIMO));
+  const dadosCompletos = !!(form.nome.trim()&&form.tel.trim()&&(form.tipo!=="entrega"||(form.end.trim()&&form.endCep.trim())));
+  const gVal  = gorjetaModo==="valor" ? (parseFloat(gorjetaCustom.replace(",","."))||0) : Math.round(sub*gorjeta)/100;
   const total = sub+frete+gVal;
   const nCart = itens.reduce((s,i)=>s+i.qty,0);
   const ranking = useMemo(()=>[...CARDAPIO.carne,...CARDAPIO.veg].map(p=>({...p,v:votos[p.id]||0})).filter(p=>p.v>0).sort((a,b)=>b.v-a.v),[votos]);
@@ -547,13 +620,14 @@ export default function App() {
     const msgCli=`✅ *Pedido #${num} confirmado!*\n\nOlá, ${form.nome}! 🍱\n\n${lns}\n\n${lF}${lG}💰 *Total: ${fmt(total)}*\n${lP}${lA}\n\n⏱ ${hr}\n\nObrigada! 💛`;
     const tel=form.tel.replace(/\D/g,"");
     setClientes(p=>p.find(c=>c.tel.replace(/\D/g,"")===tel)?p:[...p,{id:Date.now(),nome:form.nome,tel:form.tel}]);
+    try{ localStorage.setItem("dadosCliente",JSON.stringify({nome:form.nome,tel:form.tel,end:form.end,endCity:form.endCity,endProv:form.endProv,endCep:form.endCep})); }catch(_){}
     const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
     setPedidos(p=>[novo,...p]);setNovos(n=>n+1);
     setAlerta({num,nome:form.nome,total,hora:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc});
     setConfirm({num,hora:hr,tipo:form.tipo,nome:form.nome,tel:form.tel,msg:msgCli});
     window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msgCoz)}`,"_blank");
-    setCarrinho({});setObs({});setExtra({});setGorjeta(0);setCheckout(false);
-    setForm({nome:"",tel:"",tipo:"entrega",end:"",endCity:"",endProv:"",endCep:"",pag:"etransfer",alergia:null,alergiaDesc:""});setAba("pedidos");
+    setCarrinho({});setObs({});setExtra({});setGorjeta(0);setGorjetaModo("percent");setGorjetaCustom("");setCheckout(false);
+    setForm(f=>({...f,tipo:"entrega",pag:"etransfer",alergia:null,alergiaDesc:""}));setAba("pedidos");
   }
 
   function msgMenu(nome){
@@ -635,6 +709,11 @@ export default function App() {
 
         {aba==="cardapio"&&(
           <div>
+            {nCart>0&&!dadosCompletos&&(
+              <button onClick={()=>setDadosPreModal(true)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,border:`1.5px solid ${O}`,background:CA,color:O,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:12}}>
+                <span style={{fontSize:18}}>📋</span> {t.cadastrarBanner}
+              </button>
+            )}
             <div style={s.hero}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                 <div style={s.heroTit}>{t.heroTit}</div>
@@ -757,10 +836,10 @@ export default function App() {
             {/* Botão flutuante carrinho */}
             {nCart>0&&(
               <div style={{position:"sticky",bottom:0,padding:"10px 0 4px",background:`linear-gradient(transparent, ${P} 60%)`}}>
-                <button onClick={()=>setAba("carrinho")}
+                <button onClick={()=>{ if(!dadosCompletos){ setDadosPreModal(true);} else { setAba("carrinho"); } }}
                   style={{width:"100%",padding:"14px 0",borderRadius:12,border:"none",background:VE,color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   <span>🛒</span>
-                  <span>Ver carrinho ({nCart} {nCart===1?"item":"itens"}) — {fmt(sub)}</span>
+                  <span>{t.seguirBtn} ({nCart} {nCart===1?"item":"itens"}) — {fmt(sub)}</span>
                   <span>→</span>
                 </button>
               </div>
@@ -791,17 +870,25 @@ export default function App() {
                 ))}
                 <div style={s.resumo}>
                   <div style={s.resumoL}><span style={{color:MU}}>{t.subtotal}</span><span>{fmt(sub)}</span></div>
-                  <div style={s.resumoL}><span style={{color:MU}}>{t.freteLabel}</span><span style={{color:O,fontWeight:600}}>{form.tipo==="retirada"?t.gratis:fmt(TAXA_ENTREGA)}</span></div>
+                  <div style={s.resumoL}><span style={{color:MU}}>{t.freteLabel}</span><span style={{color:O,fontWeight:600}}>{form.tipo==="retirada"?t.gratis:freteStatus==="calculando"?t.calc:fmt(frete)}</span></div>
+                  {form.tipo==="entrega"&&distanciaKm!=null&&<div style={{fontSize:10.5,color:MU,marginTop:-4,marginBottom:6}}>📍 ~{distanciaKm.toFixed(1)} km {t.doCep}</div>}
                   <div style={{...s.resumoL,flexDirection:"column",alignItems:"flex-start",gap:8}}>
                     <span style={{color:MU}}>{t.gorjetaLabel}</span>
                     <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                       {GORJETAS.map(gp=>(
-                        <button key={gp} onClick={()=>setGorjeta(gp)} style={{padding:"6px 10px",borderRadius:20,border:gorjeta===gp?`1.5px solid ${O}`:`1px solid ${BL}`,background:gorjeta===gp?CA:"transparent",color:gorjeta===gp?O:MU,fontSize:12,cursor:"pointer",fontWeight:gorjeta===gp?700:400,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+                        <button key={gp} onClick={()=>{setGorjeta(gp);setGorjetaModo("percent");}} style={{padding:"6px 10px",borderRadius:20,border:gorjetaModo==="percent"&&gorjeta===gp?`1.5px solid ${O}`:`1px solid ${BL}`,background:gorjetaModo==="percent"&&gorjeta===gp?CA:"transparent",color:gorjetaModo==="percent"&&gorjeta===gp?O:MU,fontSize:12,cursor:"pointer",fontWeight:gorjetaModo==="percent"&&gorjeta===gp?700:400,display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
                           {gp===0?t.semGorjeta:`${gp}%`}
                           {gp>0&&<span style={{fontSize:9,opacity:.8}}>{fmt(Math.round(sub*gp)/100)}</span>}
                         </button>
                       ))}
+                      <button onClick={()=>setGorjetaModo("valor")} style={{padding:"6px 10px",borderRadius:20,border:gorjetaModo==="valor"?`1.5px solid ${O}`:`1px solid ${BL}`,background:gorjetaModo==="valor"?CA:"transparent",color:gorjetaModo==="valor"?O:MU,fontSize:12,cursor:"pointer",fontWeight:gorjetaModo==="valor"?700:400}}>
+                        {t.gorjetaOutro}
+                      </button>
                     </div>
+                    {gorjetaModo==="valor"&&(
+                      <input type="number" min="0" step="0.5" value={gorjetaCustom} onChange={e=>setGorjetaCustom(e.target.value)} placeholder={t.gorjetaOutroPh}
+                        style={{...s.inp,maxWidth:140,marginTop:2}}/>
+                    )}
                   </div>
                   <div style={{...s.resumoL,borderTop:`1px solid ${BO}`,paddingTop:10,marginTop:4}}>
                     <span style={{fontWeight:700,fontSize:14}}>{t.totalLabel}</span>
@@ -1237,7 +1324,7 @@ export default function App() {
       <nav style={s.nav}>
         {[
           {icon:"🍽️",idx:0,id:"cardapio"},
-          {icon:"🛒",idx:1,id:"carrinho",badge:nCart},
+          {icon:"🛒",idx:1,id:"carrinho",badge:nCart,onClick:()=>{ if(nCart>0&&!dadosCompletos){ setDadosPreModal(true);} else { setAba("carrinho"); } }},
           {icon:"🧾",idx:2,id:"pedidos",badge:novos,onClick:()=>{setAba("pedidos");setNovos(0);}},
           {icon:"⭐",idx:3,id:"especial"},
           {icon:"💬",idx:4,id:"feedback"},
@@ -1278,6 +1365,61 @@ export default function App() {
         </div>
       )}
 
+      {dadosPreModal&&(
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <span style={{fontWeight:700,fontSize:15,color:OE}}>{t.cadastrarTit}</span>
+              <button style={{border:"none",background:"transparent",fontSize:16,cursor:"pointer",color:OE}} onClick={()=>setDadosPreModal(false)}>✕</button>
+            </div>
+            <div style={{fontSize:12,color:MU,marginBottom:12}}>{t.cadastrarSub}</div>
+            <label style={s.lbl}>{t.nomeLabel}</label>
+            <input style={s.inp} value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})} placeholder={t.nomePh}/>
+            <label style={s.lbl}>{t.telLabel}</label>
+            <input style={s.inp} value={form.tel} onChange={e=>setForm({...form,tel:fmtTel(e.target.value)})} placeholder="(647) 000-0000"/>
+            <label style={s.lbl}>{t.tipoLabel}</label>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              {["entrega","retirada"].map(tp=>(
+                <button key={tp} onClick={()=>setForm({...form,tipo:tp})} style={{flex:1,padding:"8px 0",borderRadius:9,border:form.tipo===tp?`2px solid ${OE}`:`1px solid #C9A84C66`,background:form.tipo===tp?"#F5EDD5":"#FBF6EA",color:OE,fontWeight:form.tipo===tp?700:400,fontSize:13,cursor:"pointer"}}>
+                  {tp==="entrega"?t.tEnt:t.tRet}
+                </button>
+              ))}
+            </div>
+            {form.tipo==="entrega"&&(
+              <div>
+                <label style={s.lbl}>{t.endLabel}</label>
+                <input style={s.inp} value={form.end} onChange={e=>setForm({...form,end:e.target.value})}
+                  placeholder="123 Main St, Apt 4"/>
+                <div style={{display:"flex",gap:8,marginTop:6}}>
+                  <input style={{...s.inp,flex:2}} value={form.endCity||""} onChange={e=>setForm({...form,endCity:e.target.value})}
+                    placeholder="Toronto"/>
+                  <input style={{...s.inp,flex:1}} value={form.endProv||""} onChange={e=>setForm({...form,endProv:e.target.value.toUpperCase().slice(0,2)})}
+                    placeholder="ON" maxLength={2}/>
+                  <input style={{...s.inp,flex:1.5}} value={form.endCep||""} onChange={e=>{
+                    const v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
+                    const fmt=v.length>3?v.slice(0,3)+" "+v.slice(3,6):v;
+                    setForm({...form,endCep:fmt});
+                  }} placeholder="M5V 1A1" maxLength={7}/>
+                </div>
+                <div style={{marginTop:8,fontSize:12.5,color:"#3B6030",background:"#EEF6E8",padding:"7px 10px",borderRadius:8,textAlign:"center"}}>
+                  {freteStatus==="calculando"?`⏳ ${t.calc}`
+                    :freteStatus==="ok"?`🛵 ${t.freteLabel}: ${fmt(frete)} (~${distanciaKm.toFixed(1)} km)`
+                    :freteStatus==="erro"?`⚠️ CEP não encontrado — usando taxa padrão ${fmt(TAXA_ENTREGA)}`
+                    :t.freteLabel+": —"}
+                </div>
+              </div>
+            )}
+            <button style={{...s.btnPrinc,marginTop:14}} onClick={()=>{
+              if(!form.nome.trim()||!form.tel.trim()){setErro(t.eNome);return;}
+              if(form.tipo==="entrega"&&(!form.end.trim()||!form.endCep.trim())){setErro(t.eEnd);return;}
+              setErro("");
+              setDadosPreModal(false);
+              setAba("carrinho");
+            }}>{t.continuar}</button>
+          </div>
+        </div>
+      )}
+
       {checkout&&(
         <div style={s.overlay}>
           <div style={s.modal}>
@@ -1285,7 +1427,11 @@ export default function App() {
               <span style={{fontWeight:700,fontSize:15,color:OE}}>{t.confirmarTit}</span>
               <button style={{border:"none",background:"transparent",fontSize:16,cursor:"pointer",color:OE}} onClick={()=>setCheckout(false)}>✕</button>
             </div>
-            <label style={s.lbl}>{t.nomeLabel}</label><input style={s.inp} value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})} placeholder={t.nomePh}/>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <label style={s.lbl}>{t.nomeLabel}</label>
+              {form.nome&&<span onClick={()=>{setForm(f=>({...f,nome:"",tel:"",end:"",endCity:"",endProv:"",endCep:""}));try{localStorage.removeItem("dadosCliente");}catch(_){}}} style={{fontSize:11,color:MU,cursor:"pointer",textDecoration:"underline"}}>{t.naoVoce}</span>}
+            </div>
+            <input style={s.inp} value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})} placeholder={t.nomePh}/>
             <label style={s.lbl}>{t.telLabel}</label><input style={s.inp} value={form.tel} onChange={e=>setForm({...form,tel:fmtTel(e.target.value)})} placeholder="(647) 000-0000"/>
             <label style={s.lbl}>{t.pagLabel}</label>
             <div style={{display:"flex",gap:8,marginBottom:8}}>

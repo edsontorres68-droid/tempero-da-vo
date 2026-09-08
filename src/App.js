@@ -1171,10 +1171,7 @@ export default function App() {
                   }
                 </>
               }
-            </div>
-          </div>
-        )}
-
+    
         {aba==="caixa"&&(()=>{
           const tots=pedidos.reduce((s,p)=>({bruto:s.bruto+p.total,rec:s.rec+(p.pago?p.total:0),pend:s.pend+(p.pago?0:p.total),gorj:s.gorj+(p.gorjeta||0),frete:s.frete+(p.frete||0),pratos:s.pratos+(p.sub||0)}),{bruto:0,rec:0,pend:0,gorj:0,frete:0,pratos:0});
           const naoPag=pedidos.filter(p=>!p.pago&&p.entregue);

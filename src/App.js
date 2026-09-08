@@ -435,7 +435,7 @@ function ObsPanel({val,onSave,onClose,t}) {
 export default function App() {
   const [lang,setLang]       = useState("pt");
   const t                    = T[lang];
-  const [cozinhaVisivel,setCozinhaVisivel] = useState(false);
+  const [cozinhaVisivel,setCozinhaVisivel] = useState(()=>{ try{ return localStorage.getItem("acessoLiberado")==="1"; }catch(_){ return false; } });
   const [pinAberto,setPinAberto]           = useState(false);
   const [pinInput,setPinInput]             = useState("");
   const [pinErro,setPinErro]               = useState("");
@@ -449,6 +449,7 @@ export default function App() {
       if (novo === PIN_COZINHA) {
         setPinAberto(false);
         setCozinhaVisivel(true);
+        try{ localStorage.setItem("acessoLiberado","1"); }catch(_){}
         setAba("cozinha");
         setCozinhaAuth(false);
         setSenhaInput("");
@@ -1012,7 +1013,7 @@ export default function App() {
               : <div>
                   {/* Botões topo cozinha */}
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:12,alignItems:"center"}}>
-                    <button onClick={()=>{setCozinhaVisivel(false);setAba("cardapio");setCozinhaAuth(false);}}
+                    <button onClick={()=>{setAba("cardapio");setCozinhaAuth(false);}}
                       style={{fontSize:11,color:"#E05050",background:"transparent",border:"1px solid #E0505044",borderRadius:20,padding:"5px 12px",cursor:"pointer"}}>
                       🔒 Sair da cozinha
                     </button>
@@ -1242,7 +1243,7 @@ export default function App() {
           {icon:"⭐",idx:3,id:"especial"},
           {icon:"💬",idx:4,id:"feedback"},
           ...(cozinhaVisivel?[{icon:"👩‍🍳",idx:5,id:"cozinha",onClick:()=>{setCozinhaAuth(false);setSenhaInput("");setSenhaErro("");setAba("cozinha");}}]:[]),
-          {icon:"💰",idx:6,id:"caixa"},
+          ...(cozinhaVisivel?[{icon:"💰",idx:6,id:"caixa"}]:[]),
         ].map(tb=>(
           <Tab key={tb.id} icon={tb.icon} label={NAV[tb.idx]} ativo={aba===tb.id}
             onClick={tb.onClick||(()=>setAba(tb.id))} badge={tb.badge||0}/>

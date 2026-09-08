@@ -21,13 +21,15 @@ const HORA_PRAZO    = 10;
 const CEP_COZINHA   = "M9N3G8";
 // Faixas de frete por distância (em km) — ajuste os valores aqui
 const FAIXAS_FRETE  = [
-  {ateKm:3,  valor:5},
-  {ateKm:6,  valor:8},
-  {ateKm:10, valor:12},
-  {ateKm:Infinity, valor:18},
+  {ateKm:4.5, valor:6},
+  {ateKm:6.5, valor:8},
+  {ateKm:10,  valor:15},
+  {ateKm:20,  valor:25},
 ];
-const FRETE_MINIMO  = 6.0;
+const LIMITE_ENTREGA_KM = 20; // acima disso, frete é combinado direto com a cozinha
+const FRETE_MINIMO  = 5.0;
 function freteParaDistancia(km){
+  if(km>LIMITE_ENTREGA_KM) return null; // fora da área padrão — combinar com a cozinha
   const faixa = FAIXAS_FRETE.find(f=>km<=f.ateKm);
   const valor = faixa ? faixa.valor : FAIXAS_FRETE[FAIXAS_FRETE.length-1].valor;
   return Math.max(valor,FRETE_MINIMO);
@@ -128,6 +130,7 @@ const T = {
     cadastrarBanner:"Cadastre seus dados para ver o valor da entrega",
     cadastrarTit:"Seus dados",cadastrarSub:"Preencha uma vez — usamos para calcular sua entrega.",
     continuar:"Continuar",seguirBtn:"Seguir para o carrinho",
+    freteCombinar:"A combinar com a cozinha",falarCozinha:"Falar com a cozinha no WhatsApp",
     confirmarTit:"Confirmar pedido",nomeLabel:"Seu nome",nomePh:"Ex: Maria",naoVoce:"🗑 Não é você? Limpar",
     telLabel:"Telefone",telPh:"(647) 000-0000",
     pagLabel:"Pagamento",tipoLabel:"Tipo de entrega",endLabel:"Endereço",endPh:"123 Main St, Apt 4, Toronto, ON M5V 1A1",
@@ -220,6 +223,7 @@ const T = {
     cadastrarBanner:"Register your info to see the delivery fee",
     cadastrarTit:"Your info",cadastrarSub:"Fill in once — we use it to calculate your delivery.",
     continuar:"Continue",seguirBtn:"Continue to cart",
+    freteCombinar:"To confirm with the kitchen",falarCozinha:"Message the kitchen on WhatsApp",
     confirmarTit:"Confirm order",nomeLabel:"Your name",nomePh:"Ex: Maria",naoVoce:"🗑 Not you? Clear",
     telLabel:"Phone",telPh:"(647) 999-9999",
     pagLabel:"Payment",tipoLabel:"Delivery type",endLabel:"Address",endPh:"123 Main St, Apt 4, Toronto, ON M5V 1A1",
@@ -591,7 +595,8 @@ export default function App() {
     }).filter(Boolean),[carrinho,obs,extra,PRATOS]);
 
   const sub   = itens.reduce((s,i)=>s+i.preco*i.qty,0);
-  const frete = form.tipo!=="entrega" ? 0 : (distanciaKm!=null ? freteParaDistancia(distanciaKm) : Math.max(TAXA_ENTREGA,FRETE_MINIMO));
+  const foraArea = form.tipo==="entrega" && distanciaKm!=null && distanciaKm>LIMITE_ENTREGA_KM;
+  const frete = form.tipo!=="entrega" ? 0 : (foraArea ? 0 : (distanciaKm!=null ? freteParaDistancia(distanciaKm) : Math.max(TAXA_ENTREGA,FRETE_MINIMO)));
   const dadosCompletos = !!(form.nome.trim()&&form.tel.trim()&&(form.tipo!=="entrega"||(form.end.trim()&&form.endCep.trim())));
   const gVal  = gorjetaModo==="valor" ? (parseFloat(gorjetaCustom.replace(",","."))||0) : Math.round(sub*gorjeta)/100;
   const total = sub+frete+gVal;
@@ -612,7 +617,7 @@ export default function App() {
     const num=String(Date.now()).slice(-4);
     const lns=itens.map(i=>`• ${i.qty}x ${i.nome} — ${fmt(i.preco*i.qty)}`+(i.obs?`\n  ✏️ ${i.obs}`:``)).join("\n");
     const lA=form.alergia?`\n🚨 ALERGIA: ${form.alergiaDesc}`:"";
-    const lF=frete>0?`🛵 Taxa: ${fmt(frete)}\n`:"";
+    const lF=foraArea?`🛵 Taxa: ⚠️ FORA DA ÁREA PADRÃO (~${distanciaKm.toFixed(1)}km) — combinar frete com o cliente\n`:frete>0?`🛵 Taxa: ${fmt(frete)}\n`:"";
     const lG=gVal>0?`💛 Gorjeta: ${fmt(gVal)}\n`:"";
     const lP=form.pag==="etransfer"?"📧 e-Transfer":form.pag==="dinheiro"?"💵 Dinheiro":"💳 Cartão";
     const end=form.tipo==="entrega"?`📍 ${form.end}, ${form.endCity||""}, ${form.endProv||""} ${form.endCep||""}`:"🏠 Retirada";
@@ -870,8 +875,14 @@ export default function App() {
                 ))}
                 <div style={s.resumo}>
                   <div style={s.resumoL}><span style={{color:MU}}>{t.subtotal}</span><span>{fmt(sub)}</span></div>
-                  <div style={s.resumoL}><span style={{color:MU}}>{t.freteLabel}</span><span style={{color:O,fontWeight:600}}>{form.tipo==="retirada"?t.gratis:freteStatus==="calculando"?t.calc:fmt(frete)}</span></div>
+                  <div style={s.resumoL}><span style={{color:MU}}>{t.freteLabel}</span><span style={{color:foraArea?"#E05050":O,fontWeight:600}}>{form.tipo==="retirada"?t.gratis:foraArea?t.freteCombinar:freteStatus==="calculando"?t.calc:fmt(frete)}</span></div>
                   {form.tipo==="entrega"&&distanciaKm!=null&&<div style={{fontSize:10.5,color:MU,marginTop:-4,marginBottom:6}}>📍 ~{distanciaKm.toFixed(1)} km {t.doCep}</div>}
+                  {foraArea&&(
+                    <button onClick={()=>window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(`Olá! Meu endereço fica a ~${distanciaKm.toFixed(1)}km da cozinha, fora da área padrão de entrega. Poderia me passar o valor do frete?`)}`,"_blank")}
+                      style={{width:"100%",padding:"8px 0",borderRadius:10,border:"1px solid #E05050",background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer",marginBottom:8}}>
+                      💬 {t.falarCozinha}
+                    </button>
+                  )}
                   <div style={{...s.resumoL,flexDirection:"column",alignItems:"flex-start",gap:8}}>
                     <span style={{color:MU}}>{t.gorjetaLabel}</span>
                     <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
@@ -1401,8 +1412,9 @@ export default function App() {
                     setForm({...form,endCep:fmt});
                   }} placeholder="M5V 1A1" maxLength={7}/>
                 </div>
-                <div style={{marginTop:8,fontSize:12.5,color:"#3B6030",background:"#EEF6E8",padding:"7px 10px",borderRadius:8,textAlign:"center"}}>
+                <div style={{marginTop:8,fontSize:12.5,color:foraArea?"#A03030":"#3B6030",background:foraArea?"#FBE8E8":"#EEF6E8",padding:"7px 10px",borderRadius:8,textAlign:"center"}}>
                   {freteStatus==="calculando"?`⏳ ${t.calc}`
+                    :foraArea?`⚠️ ${t.freteCombinar} (~${distanciaKm.toFixed(1)} km)`
                     :freteStatus==="ok"?`🛵 ${t.freteLabel}: ${fmt(frete)} (~${distanciaKm.toFixed(1)} km)`
                     :freteStatus==="erro"?`⚠️ CEP não encontrado — usando taxa padrão ${fmt(TAXA_ENTREGA)}`
                     :t.freteLabel+": —"}

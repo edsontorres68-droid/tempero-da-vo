@@ -157,6 +157,7 @@ const T = {
     semGorjeta:"Nenhuma",totalLabel:"Total",gratis:"Grátis",
     gorjetaOutro:"💲 Outro valor",gorjetaOutroPh:"Valor (CA$)",doCep:"da cozinha",
     cadastrarBanner:"Cadastre seus dados para ver o valor da entrega",
+    cadastrarPrimeiro:"Fazer meu cadastro",
     cadastrarTit:"Seus dados",cadastrarSub:"Preencha uma vez — usamos para calcular sua entrega.",
     continuar:"Continuar",seguirBtn:"Seguir para o carrinho",
     freteCombinar:"A combinar com a cozinha",falarCozinha:"Falar com a cozinha no WhatsApp",
@@ -263,6 +264,7 @@ const T = {
     semGorjeta:"No tip",totalLabel:"Total",gratis:"Free",
     gorjetaOutro:"💲 Custom amount",gorjetaOutroPh:"Amount (CA$)",doCep:"from the kitchen",
     cadastrarBanner:"Register your info to see the delivery fee",
+    cadastrarPrimeiro:"Register my info",
     cadastrarTit:"Your info",cadastrarSub:"Fill in once — we use it to calculate your delivery.",
     continuar:"Continue",seguirBtn:"Continue to cart",
     freteCombinar:"To confirm with the kitchen",falarCozinha:"Message the kitchen on WhatsApp",
@@ -863,11 +865,14 @@ function AppInner() {
 
         {aba==="cardapio"&&(
           <div>
-            {form.nome&&form.nome.trim()&&(
-              <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:22,color:O,marginBottom:10,textAlign:"center"}}>
-                {t.boasVindas(form.nome.trim())}
-              </div>
-            )}
+            {form.nome&&form.nome.trim()
+              ?<div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:22,color:O,marginBottom:10,textAlign:"center"}}>
+                  {t.boasVindas(form.nome.trim())}
+                </div>
+              :<button onClick={()=>setDadosPreModal(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"10px 14px",borderRadius:12,border:`1.5px solid ${O}`,background:CA,color:O,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:12}}>
+                  <span style={{fontSize:18}}>👤</span> {t.cadastrarPrimeiro}
+                </button>
+            }
             {nCart>0&&!dadosCompletos&&(
               <button onClick={()=>setDadosPreModal(true)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,border:`1.5px solid ${O}`,background:CA,color:O,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:12}}>
                 <span style={{fontSize:18}}>📋</span> {t.cadastrarBanner}
@@ -1655,7 +1660,7 @@ function AppInner() {
               if(form.tipo==="entrega"&&(!form.end.trim()||!form.endCep.trim())){setErro(t.eEnd);return;}
               setErro("");
               setDadosPreModal(false);
-              setAba("carrinho");
+              if(nCart>0) setAba("carrinho");
             }}>{t.continuar}</button>
           </div>
         </div>

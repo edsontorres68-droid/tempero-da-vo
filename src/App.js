@@ -551,7 +551,11 @@ class ErrorBoundary extends Component {
           <div style={{fontSize:40,marginBottom:12}}>😔</div>
           <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Ops, algo deu errado</div>
           <div style={{fontSize:13,color:"#B8A888",marginBottom:20,maxWidth:320}}>Tenta recarregar a página. Se continuar acontecendo, avise a gente.</div>
-          <button onClick={()=>window.location.reload()} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"#E8963F",color:"#1A1408",fontWeight:700,fontSize:14,cursor:"pointer"}}>Recarregar</button>
+          <button onClick={()=>window.location.reload()} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"#E8963F",color:"#1A1408",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16}}>Recarregar</button>
+          <div style={{fontSize:10.5,color:"#6B5A44",maxWidth:340,wordBreak:"break-word",background:"#141414",border:"1px solid #2A2A2A",borderRadius:8,padding:"10px 12px",textAlign:"left"}}>
+            <strong>Detalhe técnico (manda print pra Claude):</strong><br/>
+            {String(this.state.erro?.message||this.state.erro)}
+          </div>
         </div>
       );
     }

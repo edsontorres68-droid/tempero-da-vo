@@ -25,7 +25,7 @@ const SEU_WHATSAPP  = "16478634945";
 const SITE_URL       = "https://www.temperodavo.ca";
 const INSTAGRAM_GI   = "sweetsda_gi";
 const TAXA_ENTREGA  = 8.0;
-const PRECO_100G    = 4.0;
+const PRECO_100G_PADRAO = 4.0;
 const TEMPO_ENT     = 45;
 const TEMPO_RET     = 25;
 const GORJETAS      = [0,5,10,15];
@@ -135,6 +135,7 @@ const T = {
     nav:["Cardápio","Carrinho","Pedidos","Especial","Feedback","Cozinha","Caixa"],
     sub:"COMIDA CASEIRA · GI TORRES",
     heroTit:"Marmita do dia",heroBase:"Base inclusa em todas as marmitas:",
+    boasVindas:nome=>`Olá, ${nome}! Qual o seu pedido de hoje?`,
     arroz:"Arroz",feijao:"Feijão",salada:"Salada / Legumes",
     pratosDia:"🥩 Pratos do dia",
     prazoLabel:"para escolher",prazoOff:"🔒 Prazo encerrado",
@@ -162,6 +163,7 @@ const T = {
     confirmarTit:"Confirmar pedido",nomeLabel:"Seu nome",nomePh:"Ex: Maria",naoVoce:"🗑 Não é você? Limpar",
     telLabel:"Telefone",telPh:"(647) 000-0000",
     pagLabel:"Pagamento",tipoLabel:"Tipo de entrega",endLabel:"Endereço",endPh:"123 Main St, Apt 4, Toronto, ON M5V 1A1",
+    endApto:"Apto (opcional)",endBuzzer:"Buzzer (opcional)",
     pEt:"e-Transfer",pDin:"Dinheiro",pCart:"Cartão",
     tEnt:"🛵 Entrega",tRet:"🏠 Retirada",
     confirmarBtn:"Confirmar e enviar pedido ✓",
@@ -224,6 +226,7 @@ const T = {
     cliTodos:"✅ Todos receberam o menu!",cliFechar:"Fechar",
     editTit:"Menu do dia",editDef:"Defina os 2 pratos de hoje:",editPrato:"Prato",
     editDesc:"Descrição",editPreco:"Preço CA$",editSalvar:"Salvar menu do dia ✓",
+    editPrecoExtraTit:"🥩 Valor da carne extra",editPrecoExtra:"Preço CA$",
     avisoTit:"⚠️ Aviso do dia (opcional)",
     avisoSub:"Use para informar clientes sobre ingredientes alternativos, substituições ou mudanças especiais desta semana.",
     avisoPh:"Ex: Esta semana o frango virá com molho de maracujá em vez do tradicional.",
@@ -231,12 +234,14 @@ const T = {
     cardapioBtn:"📋 Cardápio completo",
     cComCarne:"🥩 Com carne",cSemCarne:"🥦 Sem carne",
     cBase:"🍱 Base de todas as marmitas",cPag:"💳 Pagamento",cEnt:"🛵 Entrega",
+    entVariavel:"Calculada conforme a distância (a partir de $5)",
   },
   en:{
     langBtn:"PT",langOther:"pt",
     nav:["Menu","Cart","Orders","Special","Reviews","Kitchen","Finance"],
     sub:"HOME COOKING · GI TORRES",
     heroTit:"Meal of the day",heroBase:"Included in every meal:",
+    boasVindas:nome=>`Hi, ${nome}! What would you like today?`,
     arroz:"Rice",feijao:"Beans",salada:"Salad / Veggies",
     pratosDia:"🥩 Today's dishes",
     prazoLabel:"left to choose",prazoOff:"🔒 Deadline passed",
@@ -264,6 +269,7 @@ const T = {
     confirmarTit:"Confirm order",nomeLabel:"Your name",nomePh:"Ex: Maria",naoVoce:"🗑 Not you? Clear",
     telLabel:"Phone",telPh:"(647) 999-9999",
     pagLabel:"Payment",tipoLabel:"Delivery type",endLabel:"Address",endPh:"123 Main St, Apt 4, Toronto, ON M5V 1A1",
+    endApto:"Apt (optional)",endBuzzer:"Buzzer (optional)",
     pEt:"e-Transfer",pDin:"Cash",pCart:"Card",
     tEnt:"🛵 Delivery",tRet:"🏠 Pick up",
     confirmarBtn:"Confirm and send order ✓",
@@ -326,6 +332,7 @@ const T = {
     cliTodos:"✅ Everyone received the menu!",cliFechar:"Close",
     editTit:"Today's menu",editDef:"Set today's 2 dishes:",editPrato:"Dish",
     editDesc:"Description",editPreco:"Price CA$",editSalvar:"Save today's menu ✓",
+    editPrecoExtraTit:"🥩 Extra meat price",editPrecoExtra:"Price CA$",
     avisoTit:"⚠️ Daily notice (optional)",
     avisoSub:"Use this to inform clients about alternative ingredients, substitutions or special changes this week.",
     avisoPh:"Ex: This week the chicken will come with passion fruit sauce instead of traditional.",
@@ -333,6 +340,7 @@ const T = {
     cardapioBtn:"📋 Full menu",
     cComCarne:"🥩 With meat",cSemCarne:"🥦 No meat",
     cBase:"🍱 Included in every meal",cPag:"💳 Payment",cEnt:"🛵 Delivery",
+    entVariavel:"Calculated by distance (from $5)",
   },
 };
 
@@ -603,12 +611,13 @@ function AppInner() {
   const SENHA_KEY = "tdv_senha";
   function getSenha() { try { return localStorage.getItem(SENHA_KEY)||"Gitorres11121984"; } catch(_){ return "Gitorres11121984"; } }
   function setSenha(s) { try { localStorage.setItem(SENHA_KEY,s); } catch(_){} }
-  const [menuDia,setMenuDia] = useState({pratos:PRATOS_BASE,aviso:""});
+  const [menuDia,setMenuDia] = useState({pratos:PRATOS_BASE,aviso:"",precoExtra:PRECO_100G_PADRAO});
   const [sobEncForm,setSobEncForm] = useState({nome:"",tel:"",desc:"",obs:""});
   const [sobEncErro,setSobEncErro] = useState("");
   const [sobEncModal,setSobEncModal] = useState(false);
   const [linkCopiado,setLinkCopiado] = useState(false);
   const PRATOS               = menuDia.pratos;
+  const precoExtra            = menuDia.precoExtra ?? PRECO_100G_PADRAO;
   const [editando,setEditando]   = useState(false);
   const [menuTemp,setMenuTemp]   = useState(null);
   const [aba,setAba]             = useState("cardapio");
@@ -622,9 +631,9 @@ function AppInner() {
   const [form,setForm]           = useState(()=>{
     try{
       const salvo=JSON.parse(localStorage.getItem("dadosCliente")||"null");
-      if(salvo) return {nome:"",tel:"",tipo:"entrega",pag:"etransfer",alergia:null,alergiaDesc:"",...salvo};
+      if(salvo) return {nome:"",tel:"",tipo:"entrega",pag:"etransfer",alergia:null,alergiaDesc:"",endProv:"ON",endApto:"",endBuzzer:"",...salvo};
     }catch(_){}
-    return {nome:"",tel:"",tipo:"entrega",end:"",endCity:"",endProv:"",endCep:"",pag:"etransfer",alergia:null,alergiaDesc:""};
+    return {nome:"",tel:"",tipo:"entrega",end:"",endApto:"",endBuzzer:"",endCity:"",endProv:"ON",endCep:"",pag:"etransfer",alergia:null,alergiaDesc:""};
   });
   const [especForm,setEspecForm] = useState({nome:"",tel:"",desc:"",obs:""});
   const [especErro,setEspecErro] = useState("");
@@ -663,7 +672,7 @@ function AppInner() {
   useEffect(()=>{ const id=setInterval(()=>setTick(n=>n+1),60000); return()=>clearInterval(id); },[]);
   useEffect(()=>{
     const unsubMenu = onSnapshot(doc(db,"estado","menu"), snap=>{
-      if(snap.exists()){ const d=snap.data(); setMenuDia({pratos:d.pratos||PRATOS_BASE,aviso:d.aviso||""}); }
+      if(snap.exists()){ const d=snap.data(); setMenuDia({pratos:d.pratos||PRATOS_BASE,aviso:d.aviso||"",precoExtra:d.precoExtra??PRECO_100G_PADRAO}); }
     }, ()=>{});
     const unsubVotos = onSnapshot(doc(db,"estado","votos"), snap=>{
       if(snap.exists()) setVotosSug(v=>({segunda:{},quarta:{},sexta:{},...v,...snap.data()}));
@@ -696,8 +705,8 @@ function AppInner() {
     Object.entries(carrinho).filter(([,q])=>q>0).map(([id,qty])=>{
       const p=PRATOS.find(x=>x.id===id); if(!p) return null;
       const e=extra[id]||0;
-      return {id,nome:p.nome+(e>0?` +${e*100}g`:""),icon:p.icon,preco:p.preco+e*PRECO_100G,e,qty,obs:obs[id]||""};
-    }).filter(Boolean),[carrinho,obs,extra,PRATOS]);
+      return {id,nome:p.nome+(e>0?` +${e*100}g`:""),icon:p.icon,preco:p.preco+e*precoExtra,e,qty,obs:obs[id]||""};
+    }).filter(Boolean),[carrinho,obs,extra,PRATOS,precoExtra]);
 
   const sub   = itens.reduce((s,i)=>s+i.preco*i.qty,0);
   const foraArea = form.tipo==="entrega" && distanciaKm!=null && distanciaKm>LIMITE_ENTREGA_KM;
@@ -760,13 +769,13 @@ function AppInner() {
     const lF=foraArea?`🛵 Taxa: ⚠️ FORA DA ÁREA PADRÃO (~${distanciaKm.toFixed(1)}km) — combinar frete com o cliente\n`:frete>0?`🛵 Taxa: ${fmt(frete)}\n`:"";
     const lG=gVal>0?`💛 Gorjeta: ${fmt(gVal)}\n`:"";
     const lP=form.pag==="etransfer"?"📧 e-Transfer":form.pag==="dinheiro"?"💵 Dinheiro":"💳 Cartão";
-    const end=form.tipo==="entrega"?`📍 ${form.end}, ${form.endCity||""}, ${form.endProv||""} ${form.endCep||""}`:"🏠 Retirada";
+    const end=form.tipo==="entrega"?`📍 ${form.end}${form.endApto?` Apt ${form.endApto}`:""}, ${form.endCity||""}, ${form.endProv||""} ${form.endCep||""}${form.endBuzzer?`\n🔔 Buzzer: ${form.endBuzzer}`:""}`:"🏠 Retirada";
     const msgCoz=`🔔 *PEDIDO #${num}*${form.alergia?"\n🚨 ALERGIA — LEIA ANTES DE PREPARAR":""}\n\n${lns}\n\n${lF}${lG}💰 *Total: ${fmt(total)}*\n${lP}${lA}\n\n👤 ${form.nome} · 📞 ${form.tel}\n${end}\n⏱ ${hr}`;
     const msgCli=`✅ *Pedido #${num} confirmado!*\n\nOlá, ${form.nome}! 🍱\n\n${lns}\n\n${lF}${lG}💰 *Total: ${fmt(total)}*\n${lP}${lA}\n\n⏱ ${hr}\n\nObrigada! 💛`;
     const tel=form.tel.replace(/\D/g,"");
     setClientes(p=>p.find(c=>c.tel.replace(/\D/g,"")===tel)?p:[...p,{id:Date.now(),nome:form.nome,tel:form.tel}]);
-    try{ localStorage.setItem("dadosCliente",JSON.stringify({nome:form.nome,tel:form.tel,end:form.end,endCity:form.endCity,endProv:form.endProv,endCep:form.endCep})); }catch(_){}
-    const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
+    try{ localStorage.setItem("dadosCliente",JSON.stringify({nome:form.nome,tel:form.tel,end:form.end,endApto:form.endApto,endBuzzer:form.endBuzzer,endCity:form.endCity,endProv:form.endProv,endCep:form.endCep})); }catch(_){}
+    const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endApto:form.endApto||"",endBuzzer:form.endBuzzer||"",endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
     setPedidos(p=>[novo,...p]);setNovos(n=>n+1);
     setAlerta({num,nome:form.nome,total,hora:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc});
     setConfirm({num,hora:hr,tipo:form.tipo,nome:form.nome,tel:form.tel,msg:msgCli});
@@ -779,7 +788,7 @@ function AppInner() {
     const hoje=new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"numeric",month:"long"});
     const ps=PRATOS.map(p=>`🍱 *${p.nome}* — ${fmt(p.preco)}\n   ${p.desc}`).join("\n\n");
     const av=menuDia.aviso?`\n\n⚠️ *Aviso:* ${menuDia.aviso}`:"";
-    return `🍱 *Cardápio — Tempero da Vó*\n${hoje}\n\nOlá, ${nome}! 👋\n\n${ps}${av}\n\nBase: 🍚 Arroz · 🫘 Feijão · 🥗 Salada\n\n🛵 Entrega: ${fmt(TAXA_ENTREGA)} · 🏠 Retirada: grátis\n\nPeça pelo app! 😊`;
+    return `🍱 *Cardápio — Tempero da Vó*\n${hoje}\n\nOlá, ${nome}! 👋\n\n${ps}${av}\n\nBase: 🍚 Arroz · 🫘 Feijão · 🥗 Salada\n\n🛵 Entrega: calculada pela distância · 🏠 Retirada: grátis\n\nPeça pelo app! 😊`;
   }
 
   const s = {
@@ -854,6 +863,11 @@ function AppInner() {
 
         {aba==="cardapio"&&(
           <div>
+            {form.nome&&form.nome.trim()&&(
+              <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:22,color:O,marginBottom:10,textAlign:"center"}}>
+                {t.boasVindas(form.nome.trim())}
+              </div>
+            )}
             {nCart>0&&!dadosCompletos&&(
               <button onClick={()=>setDadosPreModal(true)} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:12,border:`1.5px solid ${O}`,background:CA,color:O,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:12}}>
                 <span style={{fontSize:18}}>📋</span> {t.cadastrarBanner}
@@ -922,14 +936,14 @@ function AppInner() {
                   {q>0&&(
                     <div style={{borderTop:`1px solid ${BL}`,padding:"10px 14px",display:"flex",flexDirection:"column",gap:8}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0A0A0A",borderRadius:8,padding:"7px 10px",border:`1px solid ${BL}`}}>
-                        <div style={{fontSize:12.5,fontWeight:600,color:TI}}>{t.extra} <span style={{fontSize:11,fontWeight:400,color:MU}}>+{fmt(PRECO_100G)}/{t.extraPor}</span></div>
+                        <div style={{fontSize:12.5,fontWeight:600,color:TI}}>{t.extra} <span style={{fontSize:11,fontWeight:400,color:MU}}>+{fmt(precoExtra)}/{t.extraPor}</span></div>
                         <div style={s.step}>
                           <button style={s.stepBtn} onClick={()=>setExtra(e=>({...e,[p.id]:Math.max(0,(e[p.id]||0)-1)}))}>−</button>
                           <span style={s.stepN}>{extra[p.id]||0}</span>
                           <button style={s.stepBtn} onClick={()=>setExtra(e=>({...e,[p.id]:(e[p.id]||0)+1}))}>+</button>
                         </div>
                       </div>
-                      {(extra[p.id]||0)>0&&<div style={{fontSize:11.5,color:O,fontWeight:600}}>+{(extra[p.id]||0)*100}g · {fmt((extra[p.id]||0)*PRECO_100G)} {t.extraInfo}</div>}
+                      {(extra[p.id]||0)>0&&<div style={{fontSize:11.5,color:O,fontWeight:600}}>+{(extra[p.id]||0)*100}g · {fmt((extra[p.id]||0)*precoExtra)} {t.extraInfo}</div>}
                       {painelObs
                         ?<ObsPanel val={obs[p.id]||""} onSave={txt=>{setObs(o=>({...o,[p.id]:txt}));setObsAberto(null);}} onClose={()=>setObsAberto(null)} t={t}/>
                         :<button style={s.btnObs} onClick={()=>setObsAberto(p.id)}>✏️ {temObs?`"${obs[p.id]}"`:t.obsPh}</button>
@@ -1097,7 +1111,7 @@ function AppInner() {
                   ⏱ {confirm.hora}
                   <span style={{fontWeight:700,fontSize:16,color:P,background:O,padding:"3px 10px",borderRadius:20}}>{confirm.hora}</span>
                 </div>
-                <button style={{...s.btnPrinc,background:VE,marginBottom:8}} onClick={()=>window.open(`https://wa.me/${confirm.tel.replace(/\D/g,"")}?text=${encodeURIComponent(confirm.msg)}`,"_blank")}>{t.envConf}</button>
+                <button style={{...s.btnPrinc,background:VE,marginBottom:8}} onClick={()=>window.open(`https://wa.me/1${confirm.tel.replace(/\D/g,"")}?text=${encodeURIComponent(confirm.msg)}`,"_blank")}>{t.envConf}</button>
                 <button style={{...s.btnPrinc,background:"transparent",border:`1px solid ${BL}`,color:MU}} onClick={()=>setConfirm(null)}>{t.fechar}</button>
               </div>
             )}
@@ -1136,7 +1150,7 @@ function AppInner() {
                       </div>
                     </div>
                     {p.tipo==="entrega"&&p.end&&(
-                      <div style={{fontSize:11,color:MU,marginBottom:4}}>📍 {p.end}, {p.endCity}, {p.endProv} {p.endCep}</div>
+                      <div style={{fontSize:11,color:MU,marginBottom:4}}>📍 {p.end}{p.endApto?` Apt ${p.endApto}`:""}, {p.endCity}, {p.endProv} {p.endCep}{p.endBuzzer?` · 🔔 ${p.endBuzzer}`:""}</div>
                     )}
                     <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                       {p.entregue&&<span style={{fontSize:10,background:"#2A5020",color:"#A0ECA0",borderRadius:10,padding:"2px 7px",fontWeight:700}}>{t.badEnt}</span>}
@@ -1152,7 +1166,7 @@ function AppInner() {
                     <div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}>
                       <button onClick={()=>{
                         const msg=`✅ *Pedido #${p.num} recebido!*\n\nOlá, ${p.cliente}! 🍱\n\nSeu pedido foi recebido e já está sendo preparado com carinho.\n\n⏱ Previsão: *${p.previsao}*\n${p.tipo==="entrega"?"🛵 Entrega no seu endereço":"🏠 Retirada"}\n\nObrigada pela preferência! 💛\n\n— Tempero da Vó`;
-                        window.open(`https://wa.me/55${p.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msg)}`,"_blank");
+                        window.open(`https://wa.me/1${p.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msg)}`,"_blank");
                         setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,confirmadoCliente:true}:x));
                       }} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#25D366",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                         <span>💬</span> Confirmar pedido ao cliente (WhatsApp)
@@ -1343,7 +1357,7 @@ function AppInner() {
             <div style={s.card}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                 <div><div style={{fontWeight:700,fontSize:14,color:O}}>{t.cozPratos}</div><div style={{fontSize:11,color:MU,marginTop:2}}>{t.cozSub}</div></div>
-                <button style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${O}`,background:"transparent",fontSize:12,cursor:"pointer",color:O,fontWeight:600}} onClick={()=>{setMenuTemp({pratos:PRATOS.map(p=>({...p})),aviso:menuDia.aviso||""});setEditando(true);}}>{t.cozEdit}</button>
+                <button style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${O}`,background:"transparent",fontSize:12,cursor:"pointer",color:O,fontWeight:600}} onClick={()=>{setMenuTemp({pratos:PRATOS.map(p=>({...p})),aviso:menuDia.aviso||"",precoExtra:precoExtra});setEditando(true);}}>{t.cozEdit}</button>
               </div>
               <div style={{display:"flex",gap:10}}>
                 {PRATOS.map((p,i)=>(
@@ -1415,13 +1429,13 @@ function AppInner() {
                               const msg=document.getElementById(`msg-${e.id}`)?.value||"";
                               setEspeciais(pv=>pv.map(x=>x.id===e.id?{...x,status:"aceito",precoResp:preco||null,resposta:msg}:x));
                               const txt=`✅ *Prato Especial #${e.num} — Aceito!*\n\nOlá, ${e.nome}! 🍽️\n`+(preco?`💰 ${fmt(preco)}\n`:``)+( msg?`📝 ${msg}\n`:``)+`\nResponda para confirmar!`;
-                              window.open(`https://wa.me/55${e.tel.replace(/\D/g,"")}?text=${encodeURIComponent(txt)}`,"_blank");
+                              window.open(`https://wa.me/1${e.tel.replace(/\D/g,"")}?text=${encodeURIComponent(txt)}`,"_blank");
                             }} style={{flex:1,padding:"8px 0",borderRadius:10,border:"none",background:"#3A8A30",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.espAceitarBtn}</button>
                             <button onClick={()=>{
                               const msg=document.getElementById(`msg-${e.id}`)?.value||"Infelizmente não temos os ingredientes hoje.";
                               setEspeciais(pv=>pv.map(x=>x.id===e.id?{...x,status:"recusado",resposta:msg}:x));
                               const txt=`❌ *Prato Especial #${e.num}*\n\nOlá, ${e.nome}! Infelizmente não conseguiremos atender hoje.\n\n${msg}\n\nObrigada! 💛`;
-                              window.open(`https://wa.me/55${e.tel.replace(/\D/g,"")}?text=${encodeURIComponent(txt)}`,"_blank");
+                              window.open(`https://wa.me/1${e.tel.replace(/\D/g,"")}?text=${encodeURIComponent(txt)}`,"_blank");
                             }} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #E05050`,background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.espRecusarBtn}</button>
                           </div>
                         </div>
@@ -1441,7 +1455,7 @@ function AppInner() {
                     <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${BL}`}}>
                       <div style={{width:34,height:34,borderRadius:"50%",background:CA,border:`1px solid ${O}`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,color:O,flexShrink:0}}>{c.nome[0].toUpperCase()}</div>
                       <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:TI}}>{c.nome}</div><div style={{fontSize:11.5,color:MU}}>{c.tel}</div></div>
-                      {enviando===i&&<button style={{padding:"6px 10px",borderRadius:20,border:"none",background:VE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={()=>{window.open(`https://wa.me/55${c.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msgMenu(c.nome))}`,"_blank");setEnviando(i+1<clientes.length?i+1:null);}}>{t.cliEnvBtn}</button>}
+                      {enviando===i&&<button style={{padding:"6px 10px",borderRadius:20,border:"none",background:VE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={()=>{window.open(`https://wa.me/1${c.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msgMenu(c.nome))}`,"_blank");setEnviando(i+1<clientes.length?i+1:null);}}>{t.cliEnvBtn}</button>}
                       {enviando!==null&&enviando!==i&&<span style={{fontSize:15,color:"#3A8A30"}}>✓</span>}
                     </div>
                   ))}
@@ -1609,11 +1623,17 @@ function AppInner() {
               <div>
                 <label style={s.lbl}>{t.endLabel}</label>
                 <input style={s.inp} value={form.end} onChange={e=>setForm({...form,end:e.target.value})}
-                  placeholder="123 Main St, Apt 4"/>
+                  placeholder="123 Main St"/>
+                <div style={{display:"flex",gap:8,marginTop:6}}>
+                  <input style={{...s.inp,flex:1}} value={form.endApto||""} onChange={e=>setForm({...form,endApto:e.target.value})}
+                    placeholder={t.endApto}/>
+                  <input style={{...s.inp,flex:1}} value={form.endBuzzer||""} onChange={e=>setForm({...form,endBuzzer:e.target.value})}
+                    placeholder={t.endBuzzer}/>
+                </div>
                 <div style={{display:"flex",gap:8,marginTop:6}}>
                   <input style={{...s.inp,flex:2}} value={form.endCity||""} onChange={e=>setForm({...form,endCity:e.target.value})}
                     placeholder="Toronto"/>
-                  <input style={{...s.inp,flex:1}} value={form.endProv||""} onChange={e=>setForm({...form,endProv:e.target.value.toUpperCase().slice(0,2)})}
+                  <input style={{...s.inp,flex:1}} value={form.endProv||"ON"} onChange={e=>setForm({...form,endProv:e.target.value.toUpperCase().slice(0,2)})}
                     placeholder="ON" maxLength={2}/>
                   <input style={{...s.inp,flex:1.5}} value={form.endCep||""} onChange={e=>{
                     const v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
@@ -1650,7 +1670,7 @@ function AppInner() {
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <label style={s.lbl}>{t.nomeLabel}</label>
-              {form.nome&&<span onClick={()=>{setForm(f=>({...f,nome:"",tel:"",end:"",endCity:"",endProv:"",endCep:""}));try{localStorage.removeItem("dadosCliente");}catch(_){}}} style={{fontSize:11,color:MU,cursor:"pointer",textDecoration:"underline"}}>{t.naoVoce}</span>}
+              {form.nome&&<span onClick={()=>{setForm(f=>({...f,nome:"",tel:"",end:"",endApto:"",endBuzzer:"",endCity:"",endProv:"ON",endCep:""}));try{localStorage.removeItem("dadosCliente");}catch(_){}}} style={{fontSize:11,color:MU,cursor:"pointer",textDecoration:"underline"}}>{t.naoVoce}</span>}
             </div>
             <input style={s.inp} value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})} placeholder={t.nomePh}/>
             <label style={s.lbl}>{t.telLabel}</label><input style={s.inp} value={form.tel} onChange={e=>setForm({...form,tel:fmtTel(e.target.value)})} placeholder="(647) 000-0000"/>
@@ -1674,11 +1694,17 @@ function AppInner() {
               <div>
                 <label style={s.lbl}>{t.endLabel}</label>
                 <input style={s.inp} value={form.end} onChange={e=>setForm({...form,end:e.target.value})}
-                  placeholder="123 Main St, Apt 4"/>
+                  placeholder="123 Main St"/>
+                <div style={{display:"flex",gap:8,marginTop:6}}>
+                  <input style={{...s.inp,flex:1}} value={form.endApto||""} onChange={e=>setForm({...form,endApto:e.target.value})}
+                    placeholder={t.endApto}/>
+                  <input style={{...s.inp,flex:1}} value={form.endBuzzer||""} onChange={e=>setForm({...form,endBuzzer:e.target.value})}
+                    placeholder={t.endBuzzer}/>
+                </div>
                 <div style={{display:"flex",gap:8,marginTop:6}}>
                   <input style={{...s.inp,flex:2}} value={form.endCity||""} onChange={e=>setForm({...form,endCity:e.target.value})}
                     placeholder="Toronto"/>
-                  <input style={{...s.inp,flex:1}} value={form.endProv||""} onChange={e=>setForm({...form,endProv:e.target.value.toUpperCase().slice(0,2)})}
+                  <input style={{...s.inp,flex:1}} value={form.endProv||"ON"} onChange={e=>setForm({...form,endProv:e.target.value.toUpperCase().slice(0,2)})}
                     placeholder="ON" maxLength={2}/>
                   <input style={{...s.inp,flex:1.5}} value={form.endCep||""} onChange={e=>{
                     const v=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"");
@@ -1743,7 +1769,7 @@ function AppInner() {
             </div>
             <div style={{marginTop:8,fontSize:13,color:"#6B5040",lineHeight:1.8}}>
               <div style={{fontWeight:700,color:OE,marginBottom:3}}>{t.cEnt}</div>
-              {fmt(TAXA_ENTREGA)} · {t.tRet}: {t.gratis}
+              {t.entVariavel} · {t.tRet}: {t.gratis}
             </div>
             <button style={{...s.btnPrinc,marginTop:14,background:OE}} onClick={()=>setCardapioOpen(false)}>{t.fechar}</button>
           </div>
@@ -1788,11 +1814,21 @@ function AppInner() {
             ))}
             <button style={{...s.btnPrinc,background:OE,marginBottom:16}} onClick={()=>{
               if(!menuTemp?.pratos.length) return;
-              const novoMenu={pratos:menuTemp.pratos.map(p=>({...p,preco:parseFloat(String(p.preco).replace(",","."))||35})),aviso:menuTemp.aviso||""};
+              const novoMenu={pratos:menuTemp.pratos.map(p=>({...p,preco:parseFloat(String(p.preco).replace(",","."))||35})),aviso:menuTemp.aviso||"",precoExtra:parseFloat(String(menuTemp.precoExtra).replace(",","."))||PRECO_100G_PADRAO};
               setMenuDia(novoMenu);
               setDoc(doc(db,"estado","menu"),novoMenu).catch(()=>{});
               setCarrinho({});setExtra({});setEditando(false);
             }}>{t.editSalvar}</button>
+            <div style={{marginBottom:16,background:"#FBF6EA",borderRadius:12,border:"1px solid #C9A84C44",padding:"12px 14px"}}>
+              <div style={{fontSize:12,color:OE,fontWeight:700,marginBottom:8}}>{t.editPrecoExtraTit}</div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <label style={{...s.lbl,margin:0}}>{t.editPrecoExtra}</label>
+                <input style={{...s.inp,width:80}} value={menuTemp.precoExtra}
+                  onChange={e=>setMenuTemp(m=>({...m,precoExtra:e.target.value}))}
+                  onBlur={e=>{const n=parseFloat(String(e.target.value).replace(",","."));setMenuTemp(m=>({...m,precoExtra:isNaN(n)?m.precoExtra:n}));}}/>
+                <span style={{fontSize:11,color:MU}}>/ {t.extraPor}</span>
+              </div>
+            </div>
             <div style={{borderTop:"1px solid #C9A84C44",paddingTop:14}}>
               <div style={{fontWeight:700,fontSize:13,color:OE,marginBottom:4}}>{t.avisoTit}</div>
               <div style={{fontSize:12,color:"#6B5040",marginBottom:8}}>{t.avisoSub}</div>

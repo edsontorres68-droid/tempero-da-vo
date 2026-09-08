@@ -864,7 +864,8 @@ export default function App() {
             <button onClick={()=>setSobEncModal(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"12px 0",borderRadius:12,border:`1.5px dashed ${O}`,background:"transparent",color:O,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:4}}>
               🍰 {t.sobEncBtn}
             </button>
-            <a href={`https://instagram.com/${INSTAGRAM_GI}`} target="_blank" rel="noreferrer" style={{display:"block",textAlign:"center",fontSize:11.5,color:MU,textDecoration:"underline",marginBottom:12}}>
+            <a href={`https://instagram.com/${INSTAGRAM_GI}`} target="_blank" rel="noreferrer"
+              style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"fit-content",margin:"0 auto 12px",padding:"7px 16px",borderRadius:20,background:"linear-gradient(45deg,#FEDA75,#FA7E1E,#D62976,#962FBF,#4F5BD5)",color:"#fff",fontWeight:700,fontSize:12.5,textDecoration:"none",boxShadow:"0 2px 8px rgba(214,41,118,0.35)"}}>
               📷 {t.sobEncInsta}
             </a>
 

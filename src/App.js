@@ -451,7 +451,6 @@ export default function App() {
         setCozinhaVisivel(true);
         try{ localStorage.setItem("acessoLiberado","1"); }catch(_){}
         setAba("cozinha");
-        setCozinhaAuth(false);
         setSenhaInput("");
         setSenhaErro("");
         setPinInput("");
@@ -462,7 +461,7 @@ export default function App() {
       }
     }
   }
-  const [cozinhaAuth,setCozinhaAuth]   = useState(false);
+  const [cozinhaAuth,setCozinhaAuth]   = useState(()=>{ try{ return localStorage.getItem("cozinhaAutenticada")==="1"; }catch(_){ return false; } });
   const [senhaInput,setSenhaInput]     = useState("");
   const [senhaErro,setSenhaErro]       = useState("");
   const [trocandoSenha,setTrocandoSenha] = useState(false);
@@ -999,13 +998,13 @@ export default function App() {
                     <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:22,color:O,marginBottom:6}}>Área da Cozinha</div>
                     <div style={{fontSize:13,color:MU,marginBottom:20}}>Digite a senha para continuar</div>
                     <input type="password" value={senhaInput} onChange={e=>setSenhaInput(e.target.value)}
-                      onKeyDown={e=>{if(e.key==="Enter"){if(senhaInput===getSenha()){setCozinhaAuth(true);setSenhaInput("");setSenhaErro("");}else{setSenhaErro("Senha incorreta. Tente novamente.");}}}
+                      onKeyDown={e=>{if(e.key==="Enter"){if(senhaInput===getSenha()){setCozinhaAuth(true);try{localStorage.setItem("cozinhaAutenticada","1");}catch(_){}setSenhaInput("");setSenhaErro("");}else{setSenhaErro("Senha incorreta. Tente novamente.");}}}
                       }
                       placeholder="••••••••••••••••"
                       style={{...s.inp,textAlign:"center",fontSize:18,letterSpacing:"0.2em",marginBottom:8}}/>
                     {senhaErro&&<div style={{color:"#E05050",fontSize:12,marginBottom:8}}>{senhaErro}</div>}
                     <button style={s.btnPrinc} onClick={()=>{
-                      if(senhaInput===getSenha()){setCozinhaAuth(true);setSenhaInput("");setSenhaErro("");}
+                      if(senhaInput===getSenha()){setCozinhaAuth(true);try{localStorage.setItem("cozinhaAutenticada","1");}catch(_){}setSenhaInput("");setSenhaErro("");}
                       else{setSenhaErro("Senha incorreta. Tente novamente.");}
                     }}>Entrar</button>
                   </div>
@@ -1013,7 +1012,7 @@ export default function App() {
               : <div>
                   {/* Botões topo cozinha */}
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:12,alignItems:"center"}}>
-                    <button onClick={()=>{setAba("cardapio");setCozinhaAuth(false);}}
+                    <button onClick={()=>{setAba("cardapio");setCozinhaAuth(false);try{localStorage.removeItem("cozinhaAutenticada");}catch(_){}}}
                       style={{fontSize:11,color:"#E05050",background:"transparent",border:"1px solid #E0505044",borderRadius:20,padding:"5px 12px",cursor:"pointer"}}>
                       🔒 Sair da cozinha
                     </button>
@@ -1242,7 +1241,7 @@ export default function App() {
           {icon:"🧾",idx:2,id:"pedidos",badge:novos,onClick:()=>{setAba("pedidos");setNovos(0);}},
           {icon:"⭐",idx:3,id:"especial"},
           {icon:"💬",idx:4,id:"feedback"},
-          ...(cozinhaVisivel?[{icon:"👩‍🍳",idx:5,id:"cozinha",onClick:()=>{setCozinhaAuth(false);setSenhaInput("");setSenhaErro("");setAba("cozinha");}}]:[]),
+          ...(cozinhaVisivel?[{icon:"👩‍🍳",idx:5,id:"cozinha",onClick:()=>{setAba("cozinha");}}]:[]),
           ...(cozinhaVisivel?[{icon:"💰",idx:6,id:"caixa"}]:[]),
         ].map(tb=>(
           <Tab key={tb.id} icon={tb.icon} label={NAV[tb.idx]} ativo={aba===tb.id}

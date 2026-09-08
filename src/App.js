@@ -148,6 +148,7 @@ const T = {
     votObrig:"Obrigada pelo voto! A cozinha vai adorar saber 💛",
     votMsg:"O prazo encerrou. A cozinha definiu o prato com base na votação:",
     votEncerrada:"O prazo encerrou. Obrigada por votar — a cozinha vai anunciar os pratos da semana em breve!",
+    sugEscolher:"Escolher 2 pratos",sugSelecionados:"selecionados",sugConfirmar:"Confirmar sugestão",
     dia_segunda:"Segunda-feira",dia_quarta:"Quarta-feira",dia_sexta:"Sexta-feira",
     vazio:"Carrinho vazio",vazioPh:"Escolha no cardápio.",
     pedir:"Pedir pelo WhatsApp 💬",
@@ -249,6 +250,7 @@ const T = {
     votObrig:"Thanks for voting! The kitchen will love to know 💛",
     votMsg:"Voting closed. The kitchen set the dish based on votes:",
     votEncerrada:"Voting closed. Thanks for voting — the kitchen will announce the week's dishes soon!",
+    sugEscolher:"Choose 2 dishes",sugSelecionados:"selected",sugConfirmar:"Confirm suggestion",
     dia_segunda:"Monday",dia_quarta:"Wednesday",dia_sexta:"Friday",
     vazio:"Cart is empty",vazioPh:"Choose from the menu.",
     pedir:"Order via WhatsApp 💬",
@@ -606,16 +608,13 @@ export default function App() {
   const [alerta,setAlerta]       = useState(null);
   const [confirm,setConfirm]     = useState(null);
   const [novos,setNovos]         = useState(0);
-  const [sugestoes,setSugestoes] = useState(()=>{
-    try{ const s=JSON.parse(localStorage.getItem("sugestoesSemana")||"null"); if(s) return s; }catch(_){}
-    return SUGESTOES_PADRAO;
-  });
   const [votosSug,setVotosSug]         = useState({segunda:{},quarta:{},sexta:{}});
   const [votoFeitoSug,setVotoFeitoSug] = useState(()=>{
     try{ const v=JSON.parse(localStorage.getItem("votoFeitoSemana")||"null"); if(v) return v; }catch(_){}
     return {segunda:null,quarta:null,sexta:null};
   });
-  const [editandoSugestoes,setEditandoSugestoes] = useState(false);
+  const [selecaoDia,setSelecaoDia] = useState({segunda:[],quarta:[],sexta:[]});
+  const [diaAberto,setDiaAberto] = useState(null);
   const [cardapioOpen,setCardapioOpen] = useState(false);
   const [enviando,setEnviando]   = useState(null);
   const [fbAberto,setFbAberto]   = useState(null);
@@ -629,13 +628,10 @@ export default function App() {
     const unsubMenu = onSnapshot(doc(db,"estado","menu"), snap=>{
       if(snap.exists()){ const d=snap.data(); setMenuDia({pratos:d.pratos||PRATOS_BASE,aviso:d.aviso||""}); }
     }, ()=>{});
-    const unsubSug = onSnapshot(doc(db,"estado","sugestoes"), snap=>{
-      if(snap.exists()) setSugestoes(s=>({...s,...snap.data()}));
-    }, ()=>{});
     const unsubVotos = onSnapshot(doc(db,"estado","votos"), snap=>{
       if(snap.exists()) setVotosSug(snap.data());
     }, ()=>{});
-    return ()=>{ unsubMenu(); unsubSug(); unsubVotos(); };
+    return ()=>{ unsubMenu(); unsubVotos(); };
   },[]);
   useEffect(()=>{
     if(form.tipo!=="entrega"){ setFreteStatus("idle"); setDistanciaKm(null); return; }
@@ -674,23 +670,25 @@ export default function App() {
   const total = sub+frete+gVal;
   const nCart = itens.reduce((s,i)=>s+i.qty,0);
 
-  function votarSugestao(dia,id){
+  function toggleSelecaoDia(dia,id){
     if(votoFeitoSug[dia]||expirou) return;
-    setVotosSug(v=>({...v,[dia]:{...v[dia],[id]:(v[dia][id]||0)+1}}));
+    setSelecaoDia(sd=>{
+      const atual=sd[dia]||[];
+      if(atual.includes(id)) return {...sd,[dia]:atual.filter(x=>x!==id)};
+      if(atual.length>=2) return sd;
+      return {...sd,[dia]:[...atual,id]};
+    });
+  }
+  function confirmarSugestaoDia(dia){
+    const escolha=selecaoDia[dia]||[];
+    if(escolha.length!==2||votoFeitoSug[dia]||expirou) return;
+    setVotosSug(v=>({...v,[dia]:{...v[dia],[escolha[0]]:(v[dia][escolha[0]]||0)+1,[escolha[1]]:(v[dia][escolha[1]]||0)+1}}));
     setVotoFeitoSug(v=>{
-      const novo={...v,[dia]:id};
+      const novo={...v,[dia]:escolha};
       try{ localStorage.setItem("votoFeitoSemana",JSON.stringify(novo)); }catch(_){}
       return novo;
     });
-    setDoc(doc(db,"estado","votos"),{[dia]:{[id]:increment(1)}},{merge:true}).catch(()=>{});
-  }
-  function trocarSugestao(dia,idx,novoId){
-    setSugestoes(s=>{
-      const novo={...s,[dia]:s[dia].map((v,i)=>i===idx?novoId:v)};
-      try{ localStorage.setItem("sugestoesSemana",JSON.stringify(novo)); }catch(_){}
-      setDoc(doc(db,"estado","sugestoes"),novo).catch(()=>{});
-      return novo;
-    });
+    setDoc(doc(db,"estado","votos"),{[dia]:{[escolha[0]]:increment(1),[escolha[1]]:increment(1)}},{merge:true}).catch(()=>{});
   }
   async function compartilharApp(){
     const texto="🍲 Conheça o Tempero da Vó — comida caseira brasileira em Toronto! Peça pelo app:";
@@ -923,25 +921,55 @@ export default function App() {
               {expirou&&<div style={{fontSize:12,color:MU,marginBottom:8,lineHeight:1.5}}>{t.votEncerrada}</div>}
               {!expirou&&<div style={{fontSize:12,color:MU,marginBottom:10}}>{t.votSub}</div>}
               <div style={{opacity:expirou?.5:1}}>
-                {DIAS_SUGESTAO_KEYS.map(dia=>(
-                  <div key={dia} style={{marginBottom:14}}>
-                    <div style={{fontSize:10,fontWeight:700,color:O,padding:"6px 0 6px",letterSpacing:"0.08em",textTransform:"uppercase"}}>{t[`dia_${dia}`]}</div>
-                    <div style={{display:"flex",gap:8}}>
-                      {(sugestoes[dia]||[]).map(id=>{
-                        const c=dishById(id); if(!c) return null;
-                        const jav=votoFeitoSug[dia]!==null||expirou, esv=votoFeitoSug[dia]===id;
-                        return (
-                          <button key={id} disabled={jav} onClick={()=>votarSugestao(dia,id)}
-                            style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,padding:"10px 8px",border:esv?`2px solid ${O}`:`1px solid ${BL}`,borderRadius:12,background:esv?CA:"transparent",cursor:jav?"default":"pointer",opacity:jav&&!esv?.4:1}}>
-                            <IcoCarne tipo={c.icon} size={34}/>
-                            <span style={{fontSize:11.5,textAlign:"center",color:esv?O:TI,lineHeight:1.3}}>{c.nome}</span>
-                            {esv&&<span style={{color:O,fontWeight:700,fontSize:11}}>✓ {t.votado}</span>}
+                {DIAS_SUGESTAO_KEYS.map(dia=>{
+                  const votado=votoFeitoSug[dia];
+                  const sel=selecaoDia[dia]||[];
+                  const aberto=diaAberto===dia;
+                  return (
+                    <div key={dia} style={{marginBottom:10,border:`1px solid ${BL}`,borderRadius:12,overflow:"hidden"}}>
+                      <button disabled={!!votado||expirou} onClick={()=>setDiaAberto(a=>a===dia?null:dia)}
+                        style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"transparent",border:"none",cursor:votado||expirou?"default":"pointer"}}>
+                        <span style={{fontSize:11,fontWeight:700,color:O,letterSpacing:"0.06em",textTransform:"uppercase"}}>{t[`dia_${dia}`]}</span>
+                        {votado
+                          ?<span style={{fontSize:11,color:"#3A8A30",fontWeight:700}}>✓ {t.votado}</span>
+                          :<span style={{fontSize:11,color:MU}}>{aberto?"▲":"▼"} {t.sugEscolher}</span>}
+                      </button>
+                      {votado&&(
+                        <div style={{padding:"0 12px 10px",fontSize:12,color:TI}}>
+                          {votado.map(id=>dishById(id)?.nome).filter(Boolean).join(" · ")}
+                        </div>
+                      )}
+                      {aberto&&!votado&&!expirou&&(
+                        <div style={{padding:"0 12px 12px"}}>
+                          <div style={{fontSize:11,color:O,fontWeight:600,marginBottom:6}}>{sel.length}/2 {t.sugSelecionados}</div>
+                          <div style={{maxHeight:220,overflowY:"auto"}}>
+                            {[{label:t.cComCarne,lista:CARDAPIO.carne},{label:t.cSemCarne,lista:CARDAPIO.veg}].map(g=>(
+                              <div key={g.label}>
+                                <div style={{fontSize:9.5,fontWeight:700,color:MU,padding:"5px 0 3px",letterSpacing:"0.06em",textTransform:"uppercase"}}>{g.label}</div>
+                                {g.lista.map(c=>{
+                                  const esv=sel.includes(c.id);
+                                  const cheio=sel.length>=2&&!esv;
+                                  return (
+                                    <button key={c.id} disabled={cheio} onClick={()=>toggleSelecaoDia(dia,c.id)}
+                                      style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"6px 8px",border:esv?`2px solid ${O}`:`1px solid ${BL}`,borderRadius:9,background:esv?CA:"transparent",cursor:cheio?"default":"pointer",opacity:cheio?.4:1,marginBottom:3}}>
+                                      <IcoCarne tipo={c.icon} size={24}/>
+                                      <span style={{flex:1,textAlign:"left",fontSize:12,color:esv?O:TI}}>{c.nome}</span>
+                                      {esv&&<span style={{color:O,fontWeight:700,fontSize:12}}>✓</span>}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                          <button disabled={sel.length!==2} onClick={()=>{confirmarSugestaoDia(dia);setDiaAberto(null);}}
+                            style={{...s.btnPrinc,marginTop:8,padding:"9px 0",fontSize:13,opacity:sel.length!==2?.5:1}}>
+                            {t.sugConfirmar}
                           </button>
-                        );
-                      })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               {!expirou&&Object.values(votoFeitoSug).some(Boolean)&&<div style={{fontSize:12,color:O,textAlign:"center",padding:8,background:CA,borderRadius:8,border:`1px solid ${BL}`,marginTop:4}}>{t.votObrig}</div>}
             </div>
@@ -1296,47 +1324,34 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div style={s.secTit}>{t.rankTit}</div>
-              <button onClick={()=>setEditandoSugestoes(v=>!v)} style={{fontSize:11,color:O,background:"transparent",border:`1px solid ${BL}`,borderRadius:20,padding:"4px 10px",cursor:"pointer"}}>{editandoSugestoes?t.fecharEdicao:t.editarSugestoes}</button>
-            </div>
+            <div style={s.secTit}>{t.rankTit}</div>
             <div style={s.card}>
               {DIAS_SUGESTAO_KEYS.map(dia=>{
                 const votosDia=votosSug[dia]||{};
                 const totalDia=Object.values(votosDia).reduce((s,n)=>s+n,0);
-                const opcoes=(sugestoes[dia]||[]).map(id=>({...dishById(id),v:votosDia[id]||0})).filter(p=>p&&p.id).sort((a,b)=>b.v-a.v);
+                const opcoes=Object.entries(votosDia).map(([id,v])=>({...dishById(id),v})).filter(p=>p&&p.id&&p.v>0).sort((a,b)=>b.v-a.v);
                 return (
                   <div key={dia} style={{marginBottom:16}}>
                     <div style={{fontSize:11,fontWeight:700,color:O,textTransform:"uppercase",marginBottom:6}}>{t[`dia_${dia}`]}</div>
-                    {editandoSugestoes
-                      ?<div style={{display:"flex",gap:8,marginBottom:6}}>
-                          {[0,1].map(idx=>(
-                            <select key={idx} value={sugestoes[dia]?.[idx]||""} onChange={e=>trocarSugestao(dia,idx,e.target.value)}
-                              style={{...s.inp,flex:1,fontSize:12,padding:"7px 6px"}}>
-                              {TODOS_PRATOS.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
-                            </select>
-                          ))}
-                        </div>
-                      :(totalDia===0
-                          ?<div style={{fontSize:12,color:MU}}>{t.rankVazio}</div>
-                          :opcoes.map((p,i)=>{
-                              const pct=totalDia?Math.round((p.v/totalDia)*100):0;
-                              return (
-                                <div key={p.id} style={{marginBottom:8}}>
-                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-                                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                                      {i===0&&p.v>0&&<span style={{fontSize:13}}>👑</span>}
-                                      <span style={{fontSize:12.5,color:i===0&&p.v>0?O:TI,fontWeight:i===0&&p.v>0?700:400}}>{p.nome}</span>
-                                    </div>
-                                    <span style={{fontSize:11,color:MU}}>{p.v} voto{p.v!==1?"s":""}</span>
-                                  </div>
-                                  <div style={{height:5,background:"#1A1408",borderRadius:5,overflow:"hidden"}}>
-                                    <div style={{height:"100%",width:`${pct}%`,background:i===0?O:BL,borderRadius:5}}/>
-                                  </div>
+                    {totalDia===0
+                      ?<div style={{fontSize:12,color:MU}}>{t.rankVazio}</div>
+                      :opcoes.map((p,i)=>{
+                          const pct=totalDia?Math.round((p.v/totalDia)*100):0;
+                          return (
+                            <div key={p.id} style={{marginBottom:8}}>
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                  {i===0&&p.v>0&&<span style={{fontSize:13}}>👑</span>}
+                                  <span style={{fontSize:12.5,color:i===0&&p.v>0?O:TI,fontWeight:i===0&&p.v>0?700:400}}>{p.nome}</span>
                                 </div>
-                              );
-                            })
-                        )
+                                <span style={{fontSize:11,color:MU}}>{p.v} voto{p.v!==1?"s":""}</span>
+                              </div>
+                              <div style={{height:5,background:"#1A1408",borderRadius:5,overflow:"hidden"}}>
+                                <div style={{height:"100%",width:`${pct}%`,background:i===0?O:BL,borderRadius:5}}/>
+                              </div>
+                            </div>
+                          );
+                        })
                     }
                   </div>
                 );

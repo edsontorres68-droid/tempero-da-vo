@@ -1,5 +1,18 @@
 /* eslint-disable */
 import { useState, useMemo, useEffect, useRef } from "react";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, setDoc, onSnapshot, increment } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA94GGJjsJvw9kqKBzsM8E_ph274LiVk4Y",
+  authDomain: "tempero-da-vo.firebaseapp.com",
+  projectId: "tempero-da-vo",
+  storageBucket: "tempero-da-vo.firebasestorage.app",
+  messagingSenderId: "405939961008",
+  appId: "1:405939961008:web:2c4978fcdf0f23b8788f75"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
 
 if (typeof document !== "undefined" && !document.getElementById("tdv-font")) {
   const l = document.createElement("link"); l.id = "tdv-font";
@@ -596,7 +609,10 @@ export default function App() {
     return SUGESTOES_PADRAO;
   });
   const [votosSug,setVotosSug]         = useState({segunda:{},quarta:{},sexta:{}});
-  const [votoFeitoSug,setVotoFeitoSug] = useState({segunda:null,quarta:null,sexta:null});
+  const [votoFeitoSug,setVotoFeitoSug] = useState(()=>{
+    try{ const v=JSON.parse(localStorage.getItem("votoFeitoSemana")||"null"); if(v) return v; }catch(_){}
+    return {segunda:null,quarta:null,sexta:null};
+  });
   const [editandoSugestoes,setEditandoSugestoes] = useState(false);
   const [cardapioOpen,setCardapioOpen] = useState(false);
   const [enviando,setEnviando]   = useState(null);
@@ -607,6 +623,18 @@ export default function App() {
   const prev = useRef(0);
 
   useEffect(()=>{ const id=setInterval(()=>setTick(n=>n+1),60000); return()=>clearInterval(id); },[]);
+  useEffect(()=>{
+    const unsubMenu = onSnapshot(doc(db,"estado","menu"), snap=>{
+      if(snap.exists()){ const d=snap.data(); setMenuDia({pratos:d.pratos||PRATOS_BASE,aviso:d.aviso||""}); }
+    }, ()=>{});
+    const unsubSug = onSnapshot(doc(db,"estado","sugestoes"), snap=>{
+      if(snap.exists()) setSugestoes(s=>({...s,...snap.data()}));
+    }, ()=>{});
+    const unsubVotos = onSnapshot(doc(db,"estado","votos"), snap=>{
+      if(snap.exists()) setVotosSug(snap.data());
+    }, ()=>{});
+    return ()=>{ unsubMenu(); unsubSug(); unsubVotos(); };
+  },[]);
   useEffect(()=>{
     if(form.tipo!=="entrega"){ setFreteStatus("idle"); setDistanciaKm(null); return; }
     const cep=(form.endCep||"").replace(/\s/g,"").toUpperCase();
@@ -647,12 +675,18 @@ export default function App() {
   function votarSugestao(dia,id){
     if(votoFeitoSug[dia]||expirou) return;
     setVotosSug(v=>({...v,[dia]:{...v[dia],[id]:(v[dia][id]||0)+1}}));
-    setVotoFeitoSug(v=>({...v,[dia]:id}));
+    setVotoFeitoSug(v=>{
+      const novo={...v,[dia]:id};
+      try{ localStorage.setItem("votoFeitoSemana",JSON.stringify(novo)); }catch(_){}
+      return novo;
+    });
+    setDoc(doc(db,"estado","votos"),{[dia]:{[id]:increment(1)}},{merge:true}).catch(()=>{});
   }
   function trocarSugestao(dia,idx,novoId){
     setSugestoes(s=>{
       const novo={...s,[dia]:s[dia].map((v,i)=>i===idx?novoId:v)};
       try{ localStorage.setItem("sugestoesSemana",JSON.stringify(novo)); }catch(_){}
+      setDoc(doc(db,"estado","sugestoes"),novo).catch(()=>{});
       return novo;
     });
   }
@@ -1683,7 +1717,9 @@ export default function App() {
             ))}
             <button style={{...s.btnPrinc,background:OE,marginBottom:16}} onClick={()=>{
               if(!menuTemp?.pratos.length) return;
-              setMenuDia({pratos:menuTemp.pratos.map(p=>({...p,preco:parseFloat(String(p.preco).replace(",","."))||35})),aviso:menuTemp.aviso||""});
+              const novoMenu={pratos:menuTemp.pratos.map(p=>({...p,preco:parseFloat(String(p.preco).replace(",","."))||35})),aviso:menuTemp.aviso||""};
+              setMenuDia(novoMenu);
+              setDoc(doc(db,"estado","menu"),novoMenu).catch(()=>{});
               setCarrinho({});setExtra({});setEditando(false);
             }}>{t.editSalvar}</button>
             <div style={{borderTop:"1px solid #C9A84C44",paddingTop:14}}>

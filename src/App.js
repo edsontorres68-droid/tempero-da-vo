@@ -22,6 +22,7 @@ if (typeof document !== "undefined" && !document.getElementById("tdv-font")) {
 }
 
 const SEU_WHATSAPP  = "16478634945";
+const SITE_URL       = "https://www.temperodavo.ca";
 const INSTAGRAM_GI   = "sweetsda_gi";
 const TAXA_ENTREGA  = 8.0;
 const PRECO_100G    = 4.0;
@@ -573,6 +574,7 @@ export default function App() {
   const [sobEncForm,setSobEncForm] = useState({nome:"",tel:"",desc:"",obs:""});
   const [sobEncErro,setSobEncErro] = useState("");
   const [sobEncModal,setSobEncModal] = useState(false);
+  const [linkCopiado,setLinkCopiado] = useState(false);
   const PRATOS               = menuDia.pratos;
   const [editando,setEditando]   = useState(false);
   const [menuTemp,setMenuTemp]   = useState(null);
@@ -689,6 +691,14 @@ export default function App() {
       setDoc(doc(db,"estado","sugestoes"),novo).catch(()=>{});
       return novo;
     });
+  }
+  async function compartilharApp(){
+    const texto="🍲 Conheça o Tempero da Vó — comida caseira brasileira em Toronto! Peça pelo app:";
+    if(navigator.share){
+      try{ await navigator.share({title:"Tempero da Vó",text:texto,url:SITE_URL}); }catch(_){}
+    }else{
+      try{ await navigator.clipboard.writeText(`${texto} ${SITE_URL}`); setLinkCopiado(true); setTimeout(()=>setLinkCopiado(false),2500); }catch(_){}
+    }
   }
   function enviarEncomendaSobremesa(){
     if(!sobEncForm.nome.trim()||!sobEncForm.tel.trim()){setSobEncErro(t.espENome);return;}
@@ -1205,6 +1215,15 @@ export default function App() {
                   </div>
                 </div>
               : <div>
+                  {/* Compartilhar app */}
+                  <div style={{...s.card,marginBottom:14,textAlign:"center"}}>
+                    <div style={{fontWeight:700,fontSize:13,color:O,marginBottom:10}}>📤 Compartilhar app com clientes</div>
+                    <img src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(SITE_URL)}`} alt="QR code" width={140} height={140} style={{borderRadius:10,marginBottom:10}}/>
+                    <div style={{fontSize:12,color:MU,marginBottom:10,wordBreak:"break-all"}}>{SITE_URL}</div>
+                    <button onClick={compartilharApp} style={{...s.btnPrinc,padding:"10px 0"}}>
+                      {linkCopiado?"✅ Link copiado!":"🔗 Compartilhar link"}
+                    </button>
+                  </div>
                   {/* Botões topo cozinha */}
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:12,alignItems:"center"}}>
                     <button onClick={()=>{setAba("cardapio");setCozinhaAuth(false);try{localStorage.removeItem("cozinhaAutenticada");}catch(_){}}}

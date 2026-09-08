@@ -752,7 +752,7 @@ function AppInner() {
     setSobEncErro("");
     const num=String(Date.now()).slice(-4);
     const msg=`🍰 *SOBREMESA POR ENCOMENDA #${num}*\n\n👤 ${sobEncForm.nome}\n📞 ${sobEncForm.tel}\n\n🍮 ${sobEncForm.desc}`+(sobEncForm.obs?`\n\n📝 ${sobEncForm.obs}`:``)+`\n\nPor favor responda com disponibilidade, valor e prazo de entrega!`;
-    window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msg)}`,"_blank");
+    window.location.href=`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msg)}`;
     setSobEncForm({nome:"",tel:"",desc:"",obs:""});
     setSobEncModal(false);
   }
@@ -781,7 +781,7 @@ function AppInner() {
     setPedidos(p=>[novo,...p]);setNovos(n=>n+1);
     setAlerta({num,nome:form.nome,total,hora:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc});
     setConfirm({num,hora:hr,tipo:form.tipo,nome:form.nome,tel:form.tel,msg:msgCli});
-    window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msgCoz)}`,"_blank");
+    window.location.href=`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msgCoz)}`;
     setCarrinho({});setObs({});setExtra({});setGorjeta(0);setGorjetaModo("percent");setGorjetaCustom("");setCheckout(false);
     setForm(f=>({...f,tipo:"entrega",pag:"etransfer",alergia:null,alergiaDesc:""}));setAba("pedidos");
   }
@@ -1069,7 +1069,7 @@ function AppInner() {
                   <div style={s.resumoL}><span style={{color:MU}}>{t.freteLabel}</span><span style={{color:foraArea?"#E05050":O,fontWeight:600}}>{form.tipo==="retirada"?t.gratis:foraArea?t.freteCombinar:freteStatus==="calculando"?t.calc:fmt(frete)}</span></div>
                   {form.tipo==="entrega"&&distanciaKm!=null&&<div style={{fontSize:10.5,color:MU,marginTop:-4,marginBottom:6}}>📍 ~{distanciaKm.toFixed(1)} km {t.doCep}</div>}
                   {foraArea&&(
-                    <button onClick={()=>window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(`Olá! Meu endereço fica a ~${distanciaKm.toFixed(1)}km da cozinha, fora da área padrão de entrega. Poderia me passar o valor do frete?`)}`,"_blank")}
+                    <button onClick={()=>window.location.href=`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(`Olá! Meu endereço fica a ~${distanciaKm.toFixed(1)}km da cozinha, fora da área padrão de entrega. Poderia me passar o valor do frete?`)}`}
                       style={{width:"100%",padding:"8px 0",borderRadius:10,border:"1px solid #E05050",background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer",marginBottom:8}}>
                       💬 {t.falarCozinha}
                     </button>
@@ -1116,7 +1116,7 @@ function AppInner() {
                   ⏱ {confirm.hora}
                   <span style={{fontWeight:700,fontSize:16,color:P,background:O,padding:"3px 10px",borderRadius:20}}>{confirm.hora}</span>
                 </div>
-                <button style={{...s.btnPrinc,background:VE,marginBottom:8}} onClick={()=>window.open(`https://wa.me/1${confirm.tel.replace(/\D/g,"")}?text=${encodeURIComponent(confirm.msg)}`,"_blank")}>{t.envConf}</button>
+                <button style={{...s.btnPrinc,background:VE,marginBottom:8}} onClick={()=>window.location.href=`https://wa.me/1${confirm.tel.replace(/\D/g,"")}?text=${encodeURIComponent(confirm.msg)}`}>{t.envConf}</button>
                 <button style={{...s.btnPrinc,background:"transparent",border:`1px solid ${BL}`,color:MU}} onClick={()=>setConfirm(null)}>{t.fechar}</button>
               </div>
             )}
@@ -1171,7 +1171,7 @@ function AppInner() {
                     <div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}>
                       <button onClick={()=>{
                         const msg=`✅ *Pedido #${p.num} recebido!*\n\nOlá, ${p.cliente}! 🍱\n\nSeu pedido foi recebido e já está sendo preparado com carinho.\n\n⏱ Previsão: *${p.previsao}*\n${p.tipo==="entrega"?"🛵 Entrega no seu endereço":"🏠 Retirada"}\n\nObrigada pela preferência! 💛\n\n— Tempero da Vó`;
-                        window.open(`https://wa.me/1${p.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msg)}`,"_blank");
+                        window.location.href=`https://wa.me/1${p.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msg)}`;
                         setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,confirmadoCliente:true}:x));
                       }} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#25D366",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                         <span>💬</span> Confirmar pedido ao cliente (WhatsApp)
@@ -1189,7 +1189,7 @@ function AppInner() {
                       {!p.entregue&&<button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,entregue:true}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #3A8A30`,background:"transparent",color:"#3A8A30",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.marcarEnt}</button>}
                       {p.entregue&&!p.pago&&<>
                         <button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,pago:true}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:"none",background:"#3A8A30",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.confirmarPag}</button>
-                        <button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,pago:true}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #E05050`,background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.naoPago}</button>
+                        <button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,pago:false}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #E05050`,background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.naoPago}</button>
                       </>}
                     </div>
                   )}
@@ -1224,7 +1224,7 @@ function AppInner() {
                 const nova={id:Date.now(),num,nome:especForm.nome,tel:especForm.tel,desc:especForm.desc,obs:especForm.obs,hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),status:"aguardando",resposta:"",precoResp:null};
                 setEspeciais(e=>[nova,...e]);
                 const msg=`⭐ *PRATO ESPECIAL #${num}*\n\n👤 ${especForm.nome}\n📞 ${especForm.tel}\n\n🍽️ ${especForm.desc}`+(especForm.obs?`\n\n📝 ${especForm.obs}`:``)+`\n\nPor favor responda com disponibilidade e valor!`;
-                window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msg)}`,"_blank");
+                window.location.href=`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msg)}`;
                 setEspecForm({nome:"",tel:"",desc:"",obs:""});
               }}>{t.espEnviar}</button>
             </div>
@@ -1434,13 +1434,13 @@ function AppInner() {
                               const msg=document.getElementById(`msg-${e.id}`)?.value||"";
                               setEspeciais(pv=>pv.map(x=>x.id===e.id?{...x,status:"aceito",precoResp:preco||null,resposta:msg}:x));
                               const txt=`✅ *Prato Especial #${e.num} — Aceito!*\n\nOlá, ${e.nome}! 🍽️\n`+(preco?`💰 ${fmt(preco)}\n`:``)+( msg?`📝 ${msg}\n`:``)+`\nResponda para confirmar!`;
-                              window.open(`https://wa.me/1${e.tel.replace(/\D/g,"")}?text=${encodeURIComponent(txt)}`,"_blank");
+                              window.location.href=`https://wa.me/1${e.tel.replace(/\D/g,"")}?text=${encodeURIComponent(txt)}`;
                             }} style={{flex:1,padding:"8px 0",borderRadius:10,border:"none",background:"#3A8A30",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.espAceitarBtn}</button>
                             <button onClick={()=>{
                               const msg=document.getElementById(`msg-${e.id}`)?.value||"Infelizmente não temos os ingredientes hoje.";
                               setEspeciais(pv=>pv.map(x=>x.id===e.id?{...x,status:"recusado",resposta:msg}:x));
                               const txt=`❌ *Prato Especial #${e.num}*\n\nOlá, ${e.nome}! Infelizmente não conseguiremos atender hoje.\n\n${msg}\n\nObrigada! 💛`;
-                              window.open(`https://wa.me/1${e.tel.replace(/\D/g,"")}?text=${encodeURIComponent(txt)}`,"_blank");
+                              window.location.href=`https://wa.me/1${e.tel.replace(/\D/g,"")}?text=${encodeURIComponent(txt)}`;
                             }} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #E05050`,background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.espRecusarBtn}</button>
                           </div>
                         </div>
@@ -1460,7 +1460,7 @@ function AppInner() {
                     <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${BL}`}}>
                       <div style={{width:34,height:34,borderRadius:"50%",background:CA,border:`1px solid ${O}`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,color:O,flexShrink:0}}>{c.nome[0].toUpperCase()}</div>
                       <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:TI}}>{c.nome}</div><div style={{fontSize:11.5,color:MU}}>{c.tel}</div></div>
-                      {enviando===i&&<button style={{padding:"6px 10px",borderRadius:20,border:"none",background:VE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={()=>{window.open(`https://wa.me/1${c.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msgMenu(c.nome))}`,"_blank");setEnviando(i+1<clientes.length?i+1:null);}}>{t.cliEnvBtn}</button>}
+                      {enviando===i&&<button style={{padding:"6px 10px",borderRadius:20,border:"none",background:VE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={()=>{window.location.href=`https://wa.me/1${c.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msgMenu(c.nome))}`;setEnviando(i+1<clientes.length?i+1:null);}}>{t.cliEnvBtn}</button>}
                       {enviando!==null&&enviando!==i&&<span style={{fontSize:15,color:"#3A8A30"}}>✓</span>}
                     </div>
                   ))}

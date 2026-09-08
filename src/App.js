@@ -648,7 +648,6 @@ function AppInner() {
   const [erro,setErro]           = useState("");
   const [checkout,setCheckout]   = useState(false);
   const [alerta,setAlerta]       = useState(null);
-  const [confirm,setConfirm]     = useState(null);
   const [novos,setNovos]         = useState(0);
   const [votosSug,setVotosSug]         = useState({segunda:{},quarta:{},sexta:{}});
   const [votoFeitoSug,setVotoFeitoSug] = useState(()=>{
@@ -773,14 +772,12 @@ function AppInner() {
     const lP=form.pag==="etransfer"?"📧 e-Transfer":form.pag==="dinheiro"?"💵 Dinheiro":"💳 Cartão";
     const end=form.tipo==="entrega"?`📍 ${form.end}${form.endApto?` Apt ${form.endApto}`:""}, ${form.endCity||""}, ${form.endProv||""} ${form.endCep||""}${form.endBuzzer?`\n🔔 Buzzer: ${form.endBuzzer}`:""}`:"🏠 Retirada";
     const msgCoz=`🔔 *PEDIDO #${num}*${form.alergia?"\n🚨 ALERGIA — LEIA ANTES DE PREPARAR":""}\n\n${lns}\n\n${lF}${lG}💰 *Total: ${fmt(total)}*\n${lP}${lA}\n\n👤 ${form.nome} · 📞 ${form.tel}\n${end}\n⏱ ${hr}`;
-    const msgCli=`✅ *Pedido #${num} confirmado!*\n\nOlá, ${form.nome}! 🍱\n\n${lns}\n\n${lF}${lG}💰 *Total: ${fmt(total)}*\n${lP}${lA}\n\n⏱ ${hr}\n\nObrigada! 💛`;
     const tel=form.tel.replace(/\D/g,"");
     setClientes(p=>p.find(c=>c.tel.replace(/\D/g,"")===tel)?p:[...p,{id:Date.now(),nome:form.nome,tel:form.tel}]);
     try{ localStorage.setItem("dadosCliente",JSON.stringify({nome:form.nome,tel:form.tel,end:form.end,endApto:form.endApto,endBuzzer:form.endBuzzer,endCity:form.endCity,endProv:form.endProv,endCep:form.endCep})); }catch(_){}
     const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endApto:form.endApto||"",endBuzzer:form.endBuzzer||"",endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
     setPedidos(p=>[novo,...p]);setNovos(n=>n+1);
     setAlerta({num,nome:form.nome,total,hora:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc});
-    setConfirm({num,hora:hr,tipo:form.tipo,nome:form.nome,tel:form.tel,msg:msgCli});
     window.location.href=`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msgCoz)}`;
     setCarrinho({});setObs({});setExtra({});setGorjeta(0);setGorjetaModo("percent");setGorjetaCustom("");setCheckout(false);
     setForm(f=>({...f,tipo:"entrega",pag:"etransfer",alergia:null,alergiaDesc:""}));setAba("pedidos");
@@ -1107,19 +1104,6 @@ function AppInner() {
 
         {aba==="pedidos"&&(
           <div>
-            {confirm&&(
-              <div style={{...s.card,border:`1.5px solid ${O}`,textAlign:"center",marginBottom:14}}>
-                <div style={{fontSize:32,marginBottom:6}}>✅</div>
-                <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:17,color:O,marginBottom:4}}>{t.pedConf} #{confirm.num}</div>
-                <div style={{fontSize:12.5,color:MU,lineHeight:1.5,marginBottom:10}}>Olá, {confirm.nome}! 🍱</div>
-                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,fontSize:12,color:MU,marginBottom:12}}>
-                  ⏱ {confirm.hora}
-                  <span style={{fontWeight:700,fontSize:16,color:P,background:O,padding:"3px 10px",borderRadius:20}}>{confirm.hora}</span>
-                </div>
-                <button style={{...s.btnPrinc,background:VE,marginBottom:8}} onClick={()=>window.location.href=`https://wa.me/1${confirm.tel.replace(/\D/g,"")}?text=${encodeURIComponent(confirm.msg)}`}>{t.envConf}</button>
-                <button style={{...s.btnPrinc,background:"transparent",border:`1px solid ${BL}`,color:MU}} onClick={()=>setConfirm(null)}>{t.fechar}</button>
-              </div>
-            )}
             <div style={s.secTit}>{t.pedRec}</div>
             {pedidos.length===0
               ?<div style={s.vazio}><div style={{fontSize:36}}>🧾</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{t.nenhumPed}</div></div>
@@ -1166,15 +1150,21 @@ function AppInner() {
                   </div>
                   {p.alergia&&!p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}><button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,ciente:true}:x))} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#A03030",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.ciente}</button></div>}
                   {p.alergia&&p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13}}>✅</span><span style={{fontSize:11.5,color:"#3A8A30",fontWeight:600}}>{t.cienteOk}</span></div>}
-                  {/* Botão confirmar recebimento ao cliente */}
+                  {/* Confirmação ao cliente — visual + envio numa coisa só */}
                   {!p.confirmadoCliente&&(
-                    <div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}>
+                    <div style={{borderTop:`1px solid ${BL}`,padding:"14px 12px",textAlign:"center",background:CA}}>
+                      <div style={{fontSize:26,marginBottom:4}}>✅</div>
+                      <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:16,color:O,marginBottom:2}}>{t.pedConf}</div>
+                      <div style={{fontSize:12,color:MU,marginBottom:10}}>Olá, {p.cliente}! 🍱</div>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"center",marginBottom:12}}>
+                        <span style={{fontWeight:700,fontSize:15,color:P,background:O,padding:"4px 12px",borderRadius:20}}>⏱ {p.previsao}</span>
+                      </div>
                       <button onClick={()=>{
                         const msg=`✅ *Pedido #${p.num} recebido!*\n\nOlá, ${p.cliente}! 🍱\n\nSeu pedido foi recebido e já está sendo preparado com carinho.\n\n⏱ Previsão: *${p.previsao}*\n${p.tipo==="entrega"?"🛵 Entrega no seu endereço":"🏠 Retirada"}\n\nObrigada pela preferência! 💛\n\n— Tempero da Vó`;
                         window.location.href=`https://wa.me/1${p.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msg)}`;
                         setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,confirmadoCliente:true}:x));
-                      }} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#25D366",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                        <span>💬</span> Confirmar pedido ao cliente (WhatsApp)
+                      }} style={{width:"100%",padding:"10px 0",borderRadius:10,border:"none",background:"#25D366",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                        <span>💬</span> {t.envConf}
                       </button>
                     </div>
                   )}

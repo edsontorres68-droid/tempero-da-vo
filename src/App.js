@@ -9,6 +9,7 @@ if (typeof document !== "undefined" && !document.getElementById("tdv-font")) {
 }
 
 const SEU_WHATSAPP  = "16478634945";
+const INSTAGRAM_GI   = "sweetsda_gi";
 const TAXA_ENTREGA  = 8.0;
 const PRECO_100G    = 4.0;
 const TEMPO_ENT     = 45;
@@ -189,6 +190,11 @@ const T = {
     calc:"Calculando...",votosLabel:"Votos",rankTit:"🗳️ Votos por prato",
     rankVazio:"Nenhum voto ainda.\nOs clientes votam no cardápio.",pratoFixo:"PRATO FIXO",
     editarSugestoes:"✏️ Editar sugestões",fecharEdicao:"✕ Fechar",
+    sobremesaTit:"Sobremesa da semana",sobremesaSub:"Peça com antecedência — sujeito à disponibilidade.",
+    sobEncBtn:"Sobremesa por encomenda",sobEncSub:"Conte pra Gi o que você gostaria — ela responde pelo WhatsApp com disponibilidade, valor e prazo de entrega. Também aceitamos encomendas de mini sobremesas para festas e eventos (catering)!",
+    sobEncInsta:"Ver fotos no Instagram",
+    sobEncDesc:"Qual sobremesa?",sobEncDescPh:"Ex: Brigadeiro, bolo de chocolate, pudim...",
+    sobEncObsPh:"Alguma observação? (opcional)",sobEncEnviar:"Enviar encomenda pelo WhatsApp 💬",
     espCozTit:"⭐ Solicitações de prato especial",espCozVazio:"Nenhuma solicitação ainda.",
     espResp:"Responder ao cliente:",espValor:"Valor do prato (CA$)",
     espMsgOpc:"Mensagem (opcional — ex: pronto às 12h)",
@@ -285,6 +291,11 @@ const T = {
     calc:"Calculating...",votosLabel:"Votes",rankTit:"🗳️ Votes per dish",
     rankVazio:"No votes yet.\nClients vote in the menu.",pratoFixo:"TODAY'S DISH",
     editarSugestoes:"✏️ Edit suggestions",fecharEdicao:"✕ Close",
+    sobremesaTit:"Dessert of the week",sobremesaSub:"Order ahead — subject to availability.",
+    sobEncBtn:"Custom dessert order",sobEncSub:"Tell Gi what you'd like — she'll reply on WhatsApp with availability, price and delivery time. We also take orders for mini desserts for parties and events (catering)!",
+    sobEncInsta:"See photos on Instagram",
+    sobEncDesc:"Which dessert?",sobEncDescPh:"Ex: Brigadeiro, chocolate cake, pudding...",
+    sobEncObsPh:"Any notes? (optional)",sobEncEnviar:"Send order via WhatsApp 💬",
     espCozTit:"⭐ Special dish requests",espCozVazio:"No requests yet.",
     espResp:"Reply to client:",espValor:"Dish price (CA$)",
     espMsgOpc:"Message (optional — ex: ready by 12pm)",
@@ -546,6 +557,9 @@ export default function App() {
   function getSenha() { try { return localStorage.getItem(SENHA_KEY)||"Gitorres11121984"; } catch(_){ return "Gitorres11121984"; } }
   function setSenha(s) { try { localStorage.setItem(SENHA_KEY,s); } catch(_){} }
   const [menuDia,setMenuDia] = useState({pratos:PRATOS_BASE,aviso:""});
+  const [sobEncForm,setSobEncForm] = useState({nome:"",tel:"",desc:"",obs:""});
+  const [sobEncErro,setSobEncErro] = useState("");
+  const [sobEncModal,setSobEncModal] = useState(false);
   const PRATOS               = menuDia.pratos;
   const [editando,setEditando]   = useState(false);
   const [menuTemp,setMenuTemp]   = useState(null);
@@ -641,6 +655,16 @@ export default function App() {
       try{ localStorage.setItem("sugestoesSemana",JSON.stringify(novo)); }catch(_){}
       return novo;
     });
+  }
+  function enviarEncomendaSobremesa(){
+    if(!sobEncForm.nome.trim()||!sobEncForm.tel.trim()){setSobEncErro(t.espENome);return;}
+    if(!sobEncForm.desc.trim()){setSobEncErro(t.espEDesc);return;}
+    setSobEncErro("");
+    const num=String(Date.now()).slice(-4);
+    const msg=`🍰 *SOBREMESA POR ENCOMENDA #${num}*\n\n👤 ${sobEncForm.nome}\n📞 ${sobEncForm.tel}\n\n🍮 ${sobEncForm.desc}`+(sobEncForm.obs?`\n\n📝 ${sobEncForm.obs}`:``)+`\n\nPor favor responda com disponibilidade, valor e prazo de entrega!`;
+    window.open(`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msg)}`,"_blank");
+    setSobEncForm({nome:"",tel:"",desc:"",obs:""});
+    setSobEncModal(false);
   }
 
   function enviar(){
@@ -836,6 +860,13 @@ export default function App() {
                 </div>
               );
             })}
+
+            <button onClick={()=>setSobEncModal(true)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"12px 0",borderRadius:12,border:`1.5px dashed ${O}`,background:"transparent",color:O,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:4}}>
+              🍰 {t.sobEncBtn}
+            </button>
+            <a href={`https://instagram.com/${INSTAGRAM_GI}`} target="_blank" rel="noreferrer" style={{display:"block",textAlign:"center",fontSize:11.5,color:MU,textDecoration:"underline",marginBottom:12}}>
+              📷 {t.sobEncInsta}
+            </a>
 
             <div style={s.votCard}>
               <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:19,color:O,marginBottom:4}}>{expirou?t.votOff:t.votTit}</div>
@@ -1421,6 +1452,29 @@ export default function App() {
               ))}
             </div>
             <button style={{width:"100%",marginTop:16,padding:"10px 0",borderRadius:12,border:"none",background:"transparent",color:MU,fontSize:13,cursor:"pointer"}} onClick={()=>{setPinAberto(false);setPinInput("");setPinErro("");}}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {sobEncModal&&(
+        <div style={s.overlay}>
+          <div style={s.modal}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <span style={{fontWeight:700,fontSize:15,color:OE}}>🍰 {t.sobEncBtn}</span>
+              <button style={{border:"none",background:"transparent",fontSize:16,cursor:"pointer",color:OE}} onClick={()=>setSobEncModal(false)}>✕</button>
+            </div>
+            <div style={{fontSize:12,color:MU,marginBottom:12}}>{t.sobEncSub}</div>
+            <label style={s.lbl}>{t.espNome}</label>
+            <input style={s.inp} value={sobEncForm.nome} onChange={e=>setSobEncForm(f=>({...f,nome:e.target.value}))} placeholder="Ex: Maria"/>
+            <label style={s.lbl}>{t.espTel}</label>
+            <input style={s.inp} value={sobEncForm.tel} onChange={e=>setSobEncForm(f=>({...f,tel:fmtTel(e.target.value)}))} placeholder="(647) 000-0000"/>
+            <label style={s.lbl}>{t.sobEncDesc}</label>
+            <textarea rows={3} value={sobEncForm.desc} onChange={e=>setSobEncForm(f=>({...f,desc:e.target.value}))} placeholder={t.sobEncDescPh}
+              style={{width:"100%",padding:"9px 11px",borderRadius:9,border:`1px solid ${O}`,fontSize:13,fontFamily:"inherit",color:"#2A1F00",background:"#FBF6EA",resize:"none",boxSizing:"border-box",lineHeight:1.5}}/>
+            <label style={s.lbl}>{t.espObs}</label>
+            <input style={s.inp} value={sobEncForm.obs} onChange={e=>setSobEncForm(f=>({...f,obs:e.target.value}))} placeholder={t.sobEncObsPh}/>
+            {sobEncErro&&<div style={{color:"#E05050",fontSize:12,margin:"6px 0"}}>{sobEncErro}</div>}
+            <button style={{...s.btnPrinc,marginTop:12}} onClick={enviarEncomendaSobremesa}>{t.sobEncEnviar}</button>
           </div>
         </div>
       )}

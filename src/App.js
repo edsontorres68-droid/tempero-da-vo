@@ -104,6 +104,16 @@ const CARDAPIO = {
   ],
 };
 
+const TODOS_PRATOS = [...CARDAPIO.carne, ...CARDAPIO.veg];
+function dishById(id){ return TODOS_PRATOS.find(d=>d.id===id); }
+// Sugestões padrão (2 opções por dia) — a Gi pode trocar pela tela da cozinha
+const SUGESTOES_PADRAO = {
+  segunda: ["bife_aceb","berinjela"],
+  quarta:  ["frango_temp","mac_alfredo"],
+  sexta:   ["strog_carne","lasanha_branco"],
+};
+const DIAS_SUGESTAO_KEYS = ["segunda","quarta","sexta"];
+
 const T = {
   pt:{
     langBtn:"EN",langOther:"en",
@@ -117,11 +127,13 @@ const T = {
     segunda:"2ª opção",
     extra:"🥩 Carne extra",extraPor:"por 100g",extraInfo:"a mais",
     obsPh:"Observações (sem cebola, pouco sal...)",obsSave:"Salvar",obsCancel:"Cancelar",
-    votTit:"Escolha o prato da próxima semana",votOff:"🔒 Escolha encerrada",
-    votSub:"Vote em um dos pratos disponíveis para a próxima semana",
+    votTit:"Dê sua sugestão para a próxima semana",votOff:"🔒 Sugestão encerrada",
+    votSub:"Vote na opção que você mais gostaria de comer em cada dia",
     votPrazo:"Prazo:",votado:"✓ Votado",
     votObrig:"Obrigada pelo voto! A cozinha vai adorar saber 💛",
     votMsg:"O prazo encerrou. A cozinha definiu o prato com base na votação:",
+    votEncerrada:"O prazo encerrou. Obrigada por votar — a cozinha vai anunciar os pratos da semana em breve!",
+    dia_segunda:"Segunda-feira",dia_quarta:"Quarta-feira",dia_sexta:"Sexta-feira",
     vazio:"Carrinho vazio",vazioPh:"Escolha no cardápio.",
     pedir:"Pedir pelo WhatsApp 💬",
     subtotal:"Subtotal",freteLabel:"Taxa de entrega",gorjetaLabel:"💛 Gorjeta",
@@ -176,6 +188,7 @@ const T = {
     cozEdit:"✏️ Editar",prazoTit:"Prazo de escolha",prazoEnc:"Encerrado — prato definido pela votação",
     calc:"Calculando...",votosLabel:"Votos",rankTit:"🗳️ Votos por prato",
     rankVazio:"Nenhum voto ainda.\nOs clientes votam no cardápio.",pratoFixo:"PRATO FIXO",
+    editarSugestoes:"✏️ Editar sugestões",fecharEdicao:"✕ Fechar",
     espCozTit:"⭐ Solicitações de prato especial",espCozVazio:"Nenhuma solicitação ainda.",
     espResp:"Responder ao cliente:",espValor:"Valor do prato (CA$)",
     espMsgOpc:"Mensagem (opcional — ex: pronto às 12h)",
@@ -210,11 +223,13 @@ const T = {
     segunda:"2nd option",
     extra:"🥩 Extra meat",extraPor:"per 100g",extraInfo:"extra",
     obsPh:"Notes (no onion, less salt...)",obsSave:"Save",obsCancel:"Cancel",
-    votTit:"Choose next week's dish",votOff:"🔒 Voting closed",
-    votSub:"Vote for one of the available dishes for next week",
+    votTit:"Give your suggestion for next week",votOff:"🔒 Voting closed",
+    votSub:"Vote for the option you'd like to eat each day",
     votPrazo:"Deadline:",votado:"✓ Voted",
     votObrig:"Thanks for voting! The kitchen will love to know 💛",
     votMsg:"Voting closed. The kitchen set the dish based on votes:",
+    votEncerrada:"Voting closed. Thanks for voting — the kitchen will announce the week's dishes soon!",
+    dia_segunda:"Monday",dia_quarta:"Wednesday",dia_sexta:"Friday",
     vazio:"Cart is empty",vazioPh:"Choose from the menu.",
     pedir:"Order via WhatsApp 💬",
     subtotal:"Subtotal",freteLabel:"Delivery fee",gorjetaLabel:"💛 Tip",
@@ -269,6 +284,7 @@ const T = {
     cozEdit:"✏️ Edit",prazoTit:"Voting deadline",prazoEnc:"Closed — dish set by vote count",
     calc:"Calculating...",votosLabel:"Votes",rankTit:"🗳️ Votes per dish",
     rankVazio:"No votes yet.\nClients vote in the menu.",pratoFixo:"TODAY'S DISH",
+    editarSugestoes:"✏️ Edit suggestions",fecharEdicao:"✕ Close",
     espCozTit:"⭐ Special dish requests",espCozVazio:"No requests yet.",
     espResp:"Reply to client:",espValor:"Dish price (CA$)",
     espMsgOpc:"Message (optional — ex: ready by 12pm)",
@@ -301,6 +317,14 @@ function fmtTel(val) {
   return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;
 }
 const horaEst = min => { const d = new Date(Date.now()+min*60000); return d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}); };
+const HORA_ENTREGA_PT = "18:30";
+const HORA_ENTREGA_EN = "6:30pm";
+const DIAS_PT = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+const DIAS_EN = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+function previsaoEntrega(lang){
+  const dia = (lang==="en"?DIAS_EN:DIAS_PT)[new Date().getDay()];
+  return lang==="en" ? `After ${HORA_ENTREGA_EN} (${dia})` : `Após ${HORA_ENTREGA_PT} (${dia})`;
+}
 function beep() { try { const c=new(window.AudioContext||window.webkitAudioContext)(); [0,.15,.3].forEach((t,i)=>{ const o=c.createOscillator(),g=c.createGain(); o.connect(g);g.connect(c.destination); o.frequency.value=880-i*80; g.gain.setValueAtTime(.4,c.currentTime+t); g.gain.exponentialRampToValueAtTime(.001,c.currentTime+t+.6); o.start(c.currentTime+t);o.stop(c.currentTime+t+.6); }); } catch(_){} }
 
 // ── Prazo de votação ─────────────────────────────────────────────────────────
@@ -553,8 +577,13 @@ export default function App() {
   const [alerta,setAlerta]       = useState(null);
   const [confirm,setConfirm]     = useState(null);
   const [novos,setNovos]         = useState(0);
-  const [votos,setVotos]         = useState({});
-  const [votoFeito,setVotoFeito] = useState(null);
+  const [sugestoes,setSugestoes] = useState(()=>{
+    try{ const s=JSON.parse(localStorage.getItem("sugestoesSemana")||"null"); if(s) return s; }catch(_){}
+    return SUGESTOES_PADRAO;
+  });
+  const [votosSug,setVotosSug]         = useState({segunda:{},quarta:{},sexta:{}});
+  const [votoFeitoSug,setVotoFeitoSug] = useState({segunda:null,quarta:null,sexta:null});
+  const [editandoSugestoes,setEditandoSugestoes] = useState(false);
   const [cardapioOpen,setCardapioOpen] = useState(false);
   const [enviando,setEnviando]   = useState(null);
   const [fbAberto,setFbAberto]   = useState(null);
@@ -585,7 +614,6 @@ export default function App() {
   const expirou  = prazoExpirou();
   const restante = tempoRestante();
   const lembrete = deveEnviarLembrete();
-  const pratoFixo = expirou ? pratoMaisVotado(votos,[...CARDAPIO.carne,...CARDAPIO.veg]) : null;
 
   const itens = useMemo(()=>
     Object.entries(carrinho).filter(([,q])=>q>0).map(([id,qty])=>{
@@ -601,10 +629,19 @@ export default function App() {
   const gVal  = gorjetaModo==="valor" ? (parseFloat(gorjetaCustom.replace(",","."))||0) : Math.round(sub*gorjeta)/100;
   const total = sub+frete+gVal;
   const nCart = itens.reduce((s,i)=>s+i.qty,0);
-  const ranking = useMemo(()=>[...CARDAPIO.carne,...CARDAPIO.veg].map(p=>({...p,v:votos[p.id]||0})).filter(p=>p.v>0).sort((a,b)=>b.v-a.v),[votos]);
-  const totVotos = ranking.reduce((s,p)=>s+p.v,0);
 
-  function votar(id){if(votoFeito||expirou)return;setVotos(v=>({...v,[id]:(v[id]||0)+1}));setVotoFeito(id);}
+  function votarSugestao(dia,id){
+    if(votoFeitoSug[dia]||expirou) return;
+    setVotosSug(v=>({...v,[dia]:{...v[dia],[id]:(v[dia][id]||0)+1}}));
+    setVotoFeitoSug(v=>({...v,[dia]:id}));
+  }
+  function trocarSugestao(dia,idx,novoId){
+    setSugestoes(s=>{
+      const novo={...s,[dia]:s[dia].map((v,i)=>i===idx?novoId:v)};
+      try{ localStorage.setItem("sugestoesSemana",JSON.stringify(novo)); }catch(_){}
+      return novo;
+    });
+  }
 
   function enviar(){
     if(!form.nome.trim()||!form.tel.trim()){setErro(t.eNome);return;}
@@ -613,7 +650,7 @@ export default function App() {
     if(form.alergia===null){setErro(t.eAl);return;}
     if(form.alergia&&!form.alergiaDesc.trim()){setErro(t.eAlDesc);return;}
     setErro("");
-    const hr=horaEst(form.tipo==="entrega"?TEMPO_ENT:TEMPO_RET);
+    const hr=previsaoEntrega(lang);
     const num=String(Date.now()).slice(-4);
     const lns=itens.map(i=>`• ${i.qty}x ${i.nome} — ${fmt(i.preco*i.qty)}`+(i.obs?`\n  ✏️ ${i.obs}`:``)).join("\n");
     const lA=form.alergia?`\n🚨 ALERGIA: ${form.alergiaDesc}`:"";
@@ -742,20 +779,14 @@ export default function App() {
                 {expirou&&<div style={{fontSize:10,color:"#E05050",fontWeight:700}}>{t.prazoOff}</div>}
               </div>
               <div style={{display:"flex",gap:10}}>
-                {PRATOS.map((p,i)=>{
-                  const ativo=!expirou||(pratoFixo&&pratoFixo.id===p.id);
-                  return (
-                    <div key={i} style={{...s.pratoVis,opacity:expirou&&pratoFixo&&pratoFixo.id!==p.id?.35:1,position:"relative"}}>
-                      <IcoCarne tipo={p.icon} size={50}/>
-                      <div style={{fontSize:11,fontWeight:600,textAlign:"center",color:ativo?TI:MU,lineHeight:1.3,wordBreak:"break-word"}}>{p.nome}</div>
-                      <div style={{fontSize:11,color:ativo?O:MU,fontWeight:700}}>{fmt(p.preco)}</div>
-                      {expirou&&pratoFixo&&pratoFixo.id===p.id&&<div style={{position:"absolute",top:-8,right:-8,background:O,color:P,fontSize:9,fontWeight:700,borderRadius:10,padding:"2px 6px"}}>{t.pratoFixo}</div>}
-                      {expirou&&pratoFixo&&pratoFixo.id!==p.id&&<div style={{fontSize:10,color:MU}}>{t.segunda}</div>}
-                    </div>
-                  );
-                })}
+                {PRATOS.map((p,i)=>(
+                  <div key={i} style={s.pratoVis}>
+                    <IcoCarne tipo={p.icon} size={50}/>
+                    <div style={{fontSize:11,fontWeight:600,textAlign:"center",color:TI,lineHeight:1.3,wordBreak:"break-word"}}>{p.nome}</div>
+                    <div style={{fontSize:11,color:O,fontWeight:700}}>{fmt(p.preco)}</div>
+                  </div>
+                ))}
               </div>
-              {expirou&&pratoFixo&&<div style={{marginTop:8,fontSize:11,color:MU,textAlign:"center",borderTop:`1px solid ${BL}`,paddingTop:8}}>{t.prazoMsg} <strong style={{color:O}}>{pratoFixo.nome}</strong></div>}
             </div>
 
             {menuDia.aviso&&menuDia.aviso.trim()&&(
@@ -765,7 +796,7 @@ export default function App() {
               </div>
             )}
 
-            {(expirou?(pratoFixo?[pratoFixo]:PRATOS.slice(0,1)):PRATOS).map(p=>{
+            {(expirou?PRATOS.slice(0,1):PRATOS).map(p=>{
               const q=carrinho[p.id]||0, painelObs=obsAberto===p.id, temObs=obs[p.id]?.trim();
               return (
                 <div key={p.id} style={s.pratoCard}>
@@ -813,30 +844,30 @@ export default function App() {
                   <span style={{fontSize:13,color:O,fontWeight:700}}>⏱ {t.votPrazo} {restante}</span>
                 </div>
               )}
-              {expirou&&<div style={{fontSize:12,color:MU,marginBottom:8,lineHeight:1.5}}>{t.votMsg} <strong style={{color:O}}>{pratoFixo?.nome||"—"}</strong></div>}
+              {expirou&&<div style={{fontSize:12,color:MU,marginBottom:8,lineHeight:1.5}}>{t.votEncerrada}</div>}
               {!expirou&&<div style={{fontSize:12,color:MU,marginBottom:10}}>{t.votSub}</div>}
-              {/* Lista completa do cardápio para votação */}
-              <div style={{maxHeight:260,overflowY:"auto",opacity:expirou?.4:1}}>
-                {[{label:t.cComCarne,lista:CARDAPIO.carne},{label:t.cSemCarne,lista:CARDAPIO.veg}].map(g=>(
-                  <div key={g.label}>
-                    <div style={{fontSize:10,fontWeight:700,color:O,padding:"6px 0 4px",letterSpacing:"0.08em",textTransform:"uppercase"}}>{g.label}</div>
-                    {g.lista.map(c=>{
-                      const jav=votoFeito!==null||expirou, esv=votoFeito===c.id;
-                      const borda=esv?`2px solid ${O}`:`1px solid ${BL}`;
-                      return (
-                        <button key={c.id} disabled={jav} onClick={()=>votar(c.id)}
-                          style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"8px 10px",border:borda,borderRadius:10,background:esv?CA:"transparent",cursor:jav?"default":"pointer",opacity:jav&&!esv?.35:1,marginBottom:4}}>
-                          <IcoCarne tipo={c.icon} size={28}/>
-                          <span style={{flex:1,textAlign:"left",fontSize:13,color:esv?O:TI}}>{c.nome}</span>
-                          {esv&&<span style={{color:O,fontWeight:700,fontSize:13}}>✓</span>}
-                          {!jav&&<span style={{color:MU,fontSize:12}}>→</span>}
-                        </button>
-                      );
-                    })}
+              <div style={{opacity:expirou?.5:1}}>
+                {DIAS_SUGESTAO_KEYS.map(dia=>(
+                  <div key={dia} style={{marginBottom:14}}>
+                    <div style={{fontSize:10,fontWeight:700,color:O,padding:"6px 0 6px",letterSpacing:"0.08em",textTransform:"uppercase"}}>{t[`dia_${dia}`]}</div>
+                    <div style={{display:"flex",gap:8}}>
+                      {(sugestoes[dia]||[]).map(id=>{
+                        const c=dishById(id); if(!c) return null;
+                        const jav=votoFeitoSug[dia]!==null||expirou, esv=votoFeitoSug[dia]===id;
+                        return (
+                          <button key={id} disabled={jav} onClick={()=>votarSugestao(dia,id)}
+                            style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,padding:"10px 8px",border:esv?`2px solid ${O}`:`1px solid ${BL}`,borderRadius:12,background:esv?CA:"transparent",cursor:jav?"default":"pointer",opacity:jav&&!esv?.4:1}}>
+                            <IcoCarne tipo={c.icon} size={34}/>
+                            <span style={{fontSize:11.5,textAlign:"center",color:esv?O:TI,lineHeight:1.3}}>{c.nome}</span>
+                            {esv&&<span style={{color:O,fontWeight:700,fontSize:11}}>✓ {t.votado}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 ))}
               </div>
-              {votoFeito&&!expirou&&<div style={{fontSize:12,color:O,textAlign:"center",padding:8,background:CA,borderRadius:8,border:`1px solid ${BL}`,marginTop:8}}>{t.votObrig}</div>}
+              {!expirou&&Object.values(votoFeitoSug).some(Boolean)&&<div style={{fontSize:12,color:O,textAlign:"center",padding:8,background:CA,borderRadius:8,border:`1px solid ${BL}`,marginTop:4}}>{t.votObrig}</div>}
             </div>
             {/* Botão flutuante carrinho */}
             {nCart>0&&(
@@ -1156,7 +1187,7 @@ export default function App() {
             )}
             <div style={{...s.card,marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div><div style={{fontSize:10,color:MU,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{t.prazoTit}</div><div style={{fontSize:13,color:expirou?"#E05050":O,fontWeight:600,marginTop:2}}>{expirou?t.prazoEnc:restante?`⏱ ${restante}`:t.calc}</div></div>
-              <div style={{textAlign:"right"}}><div style={{fontSize:10,color:MU,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{t.votosLabel}</div><div style={{fontSize:20,fontWeight:700,color:O}}>{totVotos}</div></div>
+              <div style={{textAlign:"right"}}><div style={{fontSize:10,color:MU,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase"}}>{t.votosLabel}</div><div style={{fontSize:20,fontWeight:700,color:O}}>{Object.values(votosSug).reduce((s,d)=>s+Object.values(d).reduce((a,b)=>a+b,0),0)}</div></div>
             </div>
             <div style={s.secTit}>{t.cozTit}</div>
             <div style={s.card}>
@@ -1180,33 +1211,51 @@ export default function App() {
                 </div>
               )}
             </div>
-            <div style={s.secTit}>{t.rankTit}</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={s.secTit}>{t.rankTit}</div>
+              <button onClick={()=>setEditandoSugestoes(v=>!v)} style={{fontSize:11,color:O,background:"transparent",border:`1px solid ${BL}`,borderRadius:20,padding:"4px 10px",cursor:"pointer"}}>{editandoSugestoes?t.fecharEdicao:t.editarSugestoes}</button>
+            </div>
             <div style={s.card}>
-              {totVotos===0
-                ?<div style={{textAlign:"center",padding:"14px 0",color:MU,fontSize:13}}>{t.rankVazio}</div>
-                :ranking.map((p,i)=>{
-                    const pct=Math.round((p.v/totVotos)*100);
-                    const venc=expirou&&i===0;
-                    return (
-                      <div key={p.id} style={{marginBottom:12}}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                          <div style={{display:"flex",alignItems:"center",gap:8}}>
-                            {i===0&&<span style={{fontSize:14}}>👑</span>}
-                            <IcoCarne tipo={p.icon} size={30}/>
-                            <span style={{fontSize:13,fontWeight:600,color:venc?O:TI}}>{p.nome}</span>
-                            {venc&&<span style={{fontSize:9,background:O,color:P,borderRadius:10,padding:"2px 6px",fontWeight:700}}>{t.pratoFixo}</span>}
-                          </div>
-                          <span style={{fontSize:11,color:MU}}>{p.v} voto{p.v>1?"s":""}</span>
+              {DIAS_SUGESTAO_KEYS.map(dia=>{
+                const votosDia=votosSug[dia]||{};
+                const totalDia=Object.values(votosDia).reduce((s,n)=>s+n,0);
+                const opcoes=(sugestoes[dia]||[]).map(id=>({...dishById(id),v:votosDia[id]||0})).filter(p=>p&&p.id).sort((a,b)=>b.v-a.v);
+                return (
+                  <div key={dia} style={{marginBottom:16}}>
+                    <div style={{fontSize:11,fontWeight:700,color:O,textTransform:"uppercase",marginBottom:6}}>{t[`dia_${dia}`]}</div>
+                    {editandoSugestoes
+                      ?<div style={{display:"flex",gap:8,marginBottom:6}}>
+                          {[0,1].map(idx=>(
+                            <select key={idx} value={sugestoes[dia]?.[idx]||""} onChange={e=>trocarSugestao(dia,idx,e.target.value)}
+                              style={{...s.inp,flex:1,fontSize:12,padding:"7px 6px"}}>
+                              {TODOS_PRATOS.map(p=><option key={p.id} value={p.id}>{p.nome}</option>)}
+                            </select>
+                          ))}
                         </div>
-                        <div style={{height:6,background:"#1A1408",borderRadius:6,overflow:"hidden",marginBottom:2}}>
-                          <div style={{height:"100%",width:`${pct}%`,background:i===0?O:BL,borderRadius:6,transition:"width .4s"}}/>
-                        </div>
-                        <div style={{fontSize:10,color:MU,textAlign:"right"}}>{pct}%</div>
-                      </div>
-                    );
-                  })
-              }
-              {totVotos>0&&<div style={{fontSize:11,color:MU,textAlign:"right",borderTop:`1px solid ${BL}`,paddingTop:6}}>Total: {totVotos} voto{totVotos>1?"s":""}</div>}
+                      :(totalDia===0
+                          ?<div style={{fontSize:12,color:MU}}>{t.rankVazio}</div>
+                          :opcoes.map((p,i)=>{
+                              const pct=totalDia?Math.round((p.v/totalDia)*100):0;
+                              return (
+                                <div key={p.id} style={{marginBottom:8}}>
+                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                      {i===0&&p.v>0&&<span style={{fontSize:13}}>👑</span>}
+                                      <span style={{fontSize:12.5,color:i===0&&p.v>0?O:TI,fontWeight:i===0&&p.v>0?700:400}}>{p.nome}</span>
+                                    </div>
+                                    <span style={{fontSize:11,color:MU}}>{p.v} voto{p.v!==1?"s":""}</span>
+                                  </div>
+                                  <div style={{height:5,background:"#1A1408",borderRadius:5,overflow:"hidden"}}>
+                                    <div style={{height:"100%",width:`${pct}%`,background:i===0?O:BL,borderRadius:5}}/>
+                                  </div>
+                                </div>
+                              );
+                            })
+                        )
+                    }
+                  </div>
+                );
+              })}
             </div>
             <div style={s.secTit}>{t.espCozTit}</div>
             <div style={s.card}>
@@ -1483,7 +1532,7 @@ export default function App() {
               <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:6}}><span style={{color:OE}}>{t.subtotal}</span><span style={{color:"#2A1F00"}}>{fmt(sub)}</span></div>
               {frete>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:6}}><span style={{color:OE}}>{t.freteLabel}</span><span style={{color:"#2A1F00"}}>{fmt(frete)}</span></div>}
               <div style={{display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:700,marginTop:6}}><span style={{color:"#2A1F00"}}>{t.totalLabel}</span><span style={{color:OE}}>{fmt(total)}</span></div>
-              <div style={{marginTop:8,fontSize:12,color:"#3B6030",background:"#EEF6E8",padding:"7px 10px",borderRadius:8,textAlign:"center"}}>⏱ {form.tipo==="entrega"?t.tEnt:t.tRet}: <strong>{horaEst(form.tipo==="entrega"?TEMPO_ENT:TEMPO_RET)}</strong></div>
+              <div style={{marginTop:8,fontSize:12,color:"#3B6030",background:"#EEF6E8",padding:"7px 10px",borderRadius:8,textAlign:"center"}}>⏱ {form.tipo==="entrega"?t.tEnt:t.tRet}: <strong>{previsaoEntrega(lang)}</strong></div>
             </div>
             <div style={{marginTop:12,background:"#1A1408",border:`2px solid ${form.alergia===null?"#E05050":form.alergia?O:"#3A8A30"}`,borderRadius:12,padding:"12px 14px"}}>
               <div style={{fontWeight:700,fontSize:13,color:form.alergia===null?"#E05050":form.alergia?O:"#3A8A30",marginBottom:6}}>{t.alTit}</div>

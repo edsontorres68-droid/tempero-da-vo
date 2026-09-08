@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, Component } from "react";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, setDoc, onSnapshot, increment } from "firebase/firestore";
 
@@ -533,6 +533,33 @@ function ObsPanel({val,onSave,onClose,t}) {
 }
 
 export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppInner/>
+    </ErrorBoundary>
+  );
+}
+
+class ErrorBoundary extends Component {
+  constructor(props){ super(props); this.state={erro:null}; }
+  static getDerivedStateFromError(erro){ return {erro}; }
+  componentDidCatch(erro,info){ try{ console.error("Erro no app:",erro,info); }catch(_){} }
+  render(){
+    if(this.state.erro){
+      return (
+        <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0A0A0A",color:"#F5E8CC",padding:24,textAlign:"center",fontFamily:"sans-serif"}}>
+          <div style={{fontSize:40,marginBottom:12}}>😔</div>
+          <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Ops, algo deu errado</div>
+          <div style={{fontSize:13,color:"#B8A888",marginBottom:20,maxWidth:320}}>Tenta recarregar a página. Se continuar acontecendo, avise a gente.</div>
+          <button onClick={()=>window.location.reload()} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"#E8963F",color:"#1A1408",fontWeight:700,fontSize:14,cursor:"pointer"}}>Recarregar</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function AppInner() {
   const [lang,setLang]       = useState("pt");
   const t                    = T[lang];
   const [cozinhaVisivel,setCozinhaVisivel] = useState(()=>{ try{ return localStorage.getItem("acessoLiberado")==="1"; }catch(_){ return false; } });
@@ -629,7 +656,7 @@ export default function App() {
       if(snap.exists()){ const d=snap.data(); setMenuDia({pratos:d.pratos||PRATOS_BASE,aviso:d.aviso||""}); }
     }, ()=>{});
     const unsubVotos = onSnapshot(doc(db,"estado","votos"), snap=>{
-      if(snap.exists()) setVotosSug(snap.data());
+      if(snap.exists()) setVotosSug(v=>({segunda:{},quarta:{},sexta:{},...v,...snap.data()}));
     }, ()=>{});
     return ()=>{ unsubMenu(); unsubVotos(); };
   },[]);

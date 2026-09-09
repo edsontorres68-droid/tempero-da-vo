@@ -135,7 +135,8 @@ const T = {
     langBtn:"EN",langOther:"en",
     nav:["Cardápio","Carrinho","Pedidos","Especial","Feedback","Cozinha","Caixa"],
     sub:"COMIDA CASEIRA · GI TORRES",
-    heroTit:"Marmita do dia",heroBase:"Base inclusa em todas as marmitas:",
+    heroTit:"Marmita do dia",heroBase:"Toda marmita já vem com essa base:",
+    escolhaCarne:"Escolha a carne do dia abaixo",
     boasVindas:nome=>`Olá, ${nome}! Qual o seu pedido de hoje?`,
     arroz:"Arroz",feijao:"Feijão",salada:"Salada / Legumes",
     pratosDia:"🥩 Pratos do dia",
@@ -246,7 +247,8 @@ const T = {
     langBtn:"PT",langOther:"pt",
     nav:["Menu","Cart","Orders","Special","Reviews","Kitchen","Finance"],
     sub:"HOME COOKING · GI TORRES",
-    heroTit:"Meal of the day",heroBase:"Included in every meal:",
+    heroTit:"Meal of the day",heroBase:"Every meal already comes with this base:",
+    escolhaCarne:"Choose today's meat below",
     boasVindas:nome=>`Hi, ${nome}! What would you like today?`,
     arroz:"Rice",feijao:"Beans",salada:"Salad / Veggies",
     pratosDia:"🥩 Today's dishes",
@@ -989,29 +991,32 @@ function AppInner() {
                 <div style={s.heroTit}>{t.heroTit}</div>
                 <button style={s.btnList} onClick={()=>setCardapioOpen(true)}>{t.cardapioBtn}</button>
               </div>
-              <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:14}}>
-                <div style={{flexShrink:0}}><Marmita size={74}/></div>
-                <div style={{fontSize:12,color:MU,lineHeight:1.5}}>{t.heroBase}</div>
+              <div style={{display:"flex",gap:12,alignItems:"center",marginBottom:12}}>
+                <div style={{flexShrink:0}}><Marmita size={56}/></div>
+                <div style={{fontSize:12.5,color:TI,lineHeight:1.5,fontWeight:600}}>{t.heroBase}</div>
               </div>
               <div style={s.baseRow}>
-                <div style={s.baseItem}><IcoArroz size={38}/><span>{t.arroz}</span></div>
-                <div style={s.baseItem}><IcoFeijao size={38}/><span>{t.feijao}</span></div>
-                <div style={s.baseItem}><IcoSalada size={38}/><span>{t.salada}</span></div>
+                <div style={s.baseItem}><IcoArroz size={36}/><span>{t.arroz}</span></div>
+                <div style={s.baseItem}><IcoFeijao size={36}/><span>{t.feijao}</span></div>
+                <div style={s.baseItem}><IcoSalada size={36}/><span>{t.salada}</span></div>
+              </div>
+              <div style={{marginTop:10,fontSize:12,color:O,fontWeight:700,textAlign:"center",background:CA,borderRadius:8,padding:"7px 8px"}}>
+                👇 {t.escolhaCarne}
               </div>
             </div>
 
             <div style={s.pratosHoje}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={s.cardTit}>{t.pratosDia}</div>
-                {!expirou&&restante&&<div style={{fontSize:10,color:O,background:CA,border:`1px solid ${BL}`,borderRadius:20,padding:"2px 8px"}}>⏱ {restante} {t.prazoLabel}</div>}
-                {expirou&&<div style={{fontSize:10,color:"#E05050",fontWeight:700}}>{t.prazoOff}</div>}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div style={{...s.cardTit,fontSize:11.5,opacity:0.85}}>{t.pratosDia}</div>
+                {!expirou&&restante&&<div style={{fontSize:9.5,color:O,background:P,border:`1px solid ${BL}`,borderRadius:20,padding:"2px 7px"}}>⏱ {restante} {t.prazoLabel}</div>}
+                {expirou&&<div style={{fontSize:9.5,color:"#E05050",fontWeight:700}}>{t.prazoOff}</div>}
               </div>
-              <div style={{display:"flex",gap:10}}>
+              <div style={{display:"flex",gap:8}}>
                 {PRATOS.map((p,i)=>(
-                  <div key={i} style={s.pratoVis}>
-                    <IcoCarne tipo={p.icon} size={50}/>
-                    <div style={{fontSize:11,fontWeight:600,textAlign:"center",color:TI,lineHeight:1.3,wordBreak:"break-word"}}>{p.nome}</div>
-                    <div style={{fontSize:11,color:O,fontWeight:700}}>{fmt(p.preco)}</div>
+                  <div key={i} style={{...s.pratoVis,padding:"7px 6px"}}>
+                    <IcoCarne tipo={p.icon} size={30}/>
+                    <div style={{fontSize:10,fontWeight:600,textAlign:"center",color:TI,lineHeight:1.2,wordBreak:"break-word"}}>{p.nome}</div>
+                    <div style={{fontSize:10,color:O,fontWeight:700}}>{fmt(p.preco)}</div>
                   </div>
                 ))}
               </div>
@@ -1029,7 +1034,7 @@ function AppInner() {
               return (
                 <div key={p.id} style={s.pratoCard}>
                   <div style={{display:"flex",gap:12,alignItems:"flex-start",padding:14}}>
-                    <div style={{flexShrink:0}}><IcoCarne tipo={p.icon} size={54}/></div>
+                    <div style={{flexShrink:0}}><IcoCarne tipo={p.icon} size={78}/></div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:19,color:O,marginBottom:3,lineHeight:1.2}}>{p.nome}</div>
                       <div style={{fontSize:12,color:MU,lineHeight:1.5,marginBottom:5,wordBreak:"break-word"}}>{p.desc}</div>

@@ -150,6 +150,7 @@ const T = {
     votMsg:"O prazo encerrou. A cozinha definiu o prato com base na votação:",
     votEncerrada:"O prazo encerrou. Obrigada por votar — a cozinha vai anunciar os pratos da semana em breve!",
     sugEscolher:"Escolher 2 pratos",sugSelecionados:"selecionados",sugConfirmar:"Confirmar sugestão",
+    alterarVoto:"toque para alterar",sugSalvarAlteracao:"Salvar alteração",
     dia_segunda:"Segunda-feira",dia_quarta:"Quarta-feira",dia_sexta:"Sexta-feira",
     vazio:"Carrinho vazio",vazioPh:"Escolha no cardápio.",
     pedir:"Pedir pelo WhatsApp 💬",
@@ -259,6 +260,7 @@ const T = {
     votMsg:"Voting closed. The kitchen set the dish based on votes:",
     votEncerrada:"Voting closed. Thanks for voting — the kitchen will announce the week's dishes soon!",
     sugEscolher:"Choose 2 dishes",sugSelecionados:"selected",sugConfirmar:"Confirm suggestion",
+    alterarVoto:"tap to change",sugSalvarAlteracao:"Save change",
     dia_segunda:"Monday",dia_quarta:"Wednesday",dia_sexta:"Friday",
     vazio:"Cart is empty",vazioPh:"Choose from the menu.",
     pedir:"Order via WhatsApp 💬",
@@ -412,6 +414,21 @@ function votacaoAberta() {
 }
 
 const prazoExpirou = () => !votacaoAberta();
+
+// Identifica o "ciclo" de votação atual: reinicia toda semana no sábado às 10h (hora de Toronto).
+// Retorna a data (AAAA-MM-DD) do sábado que marca o início do ciclo em curso.
+function cicloVotacaoAtual() {
+  const now = getTorontoDate();
+  const d = now.getDay(); // 0=Dom...6=Sáb
+  const cursor = new Date(now);
+  const diasDesdeSab = (d - 6 + 7) % 7;
+  cursor.setDate(cursor.getDate() - diasDesdeSab);
+  cursor.setHours(0,0,0,0);
+  const sab10h = new Date(cursor);
+  sab10h.setHours(10,0,0,0);
+  if (now < sab10h) cursor.setDate(cursor.getDate() - 7);
+  return cursor.toISOString().slice(0,10);
+}
 
 function tempoRestante() {
   if (!votacaoAberta()) return null;
@@ -674,6 +691,8 @@ function AppInner() {
   // eslint-disable-next-line no-unused-vars
   const [tick,setTick]           = useState(0);
   const prev = useRef(0);
+  const [cicloVotos,setCicloVotos] = useState(null);
+  const [votosCarregados,setVotosCarregados] = useState(false);
 
   useEffect(()=>{ const id=setInterval(()=>setTick(n=>n+1),60000); return()=>clearInterval(id); },[]);
   useEffect(()=>{
@@ -681,10 +700,31 @@ function AppInner() {
       if(snap.exists()){ const d=snap.data(); setMenuDia({pratos:d.pratos||PRATOS_BASE,aviso:d.aviso||"",precoExtra:d.precoExtra??PRECO_100G_PADRAO}); }
     }, ()=>{});
     const unsubVotos = onSnapshot(doc(db,"estado","votos"), snap=>{
-      if(snap.exists()) setVotosSug(v=>({segunda:{},quarta:{},sexta:{},...v,...snap.data()}));
-    }, ()=>{});
+      if(snap.exists()){
+        const {ciclo,...dias}=snap.data();
+        setVotosSug(v=>({segunda:{},quarta:{},sexta:{},...v,...dias}));
+        setCicloVotos(ciclo||null);
+      }
+      setVotosCarregados(true);
+    }, ()=>{ setVotosCarregados(true); });
     return ()=>{ unsubMenu(); unsubVotos(); };
   },[]);
+  useEffect(()=>{
+    // Reinicia o "já votei" deste celular quando começa um novo ciclo de votação
+    const ciclo=cicloVotacaoAtual();
+    try{
+      const ultimo=localStorage.getItem("cicloVotoLocal");
+      if(ultimo!==ciclo){
+        localStorage.setItem("cicloVotoLocal",ciclo);
+        localStorage.removeItem("votoFeitoSemana");
+        setVotoFeitoSug({segunda:null,quarta:null,sexta:null});
+      }
+    }catch(_){}
+    // Reinicia os votos compartilhados (uma vez, quando o primeiro celular perceber o novo ciclo)
+    if(votosCarregados&&cicloVotos!==ciclo){
+      setDoc(doc(db,"estado","votos"),{segunda:{},quarta:{},sexta:{},ciclo}).catch(()=>{});
+    }
+  },[tick,votosCarregados,cicloVotos]);
   useEffect(()=>{
     if(form.tipo!=="entrega"){ setFreteStatus("idle"); setDistanciaKm(null); return; }
     const cep=(form.endCep||"").replace(/\s/g,"").toUpperCase();
@@ -723,7 +763,7 @@ function AppInner() {
   const nCart = itens.reduce((s,i)=>s+i.qty,0);
 
   function toggleSelecaoDia(dia,id){
-    if(votoFeitoSug[dia]||expirou) return;
+    if(expirou) return;
     setSelecaoDia(sd=>{
       const atual=sd[dia]||[];
       if(atual.includes(id)) return {...sd,[dia]:atual.filter(x=>x!==id)};
@@ -733,14 +773,23 @@ function AppInner() {
   }
   function confirmarSugestaoDia(dia){
     const escolha=selecaoDia[dia]||[];
-    if(escolha.length!==2||votoFeitoSug[dia]||expirou) return;
-    setVotosSug(v=>({...v,[dia]:{...v[dia],[escolha[0]]:(v[dia][escolha[0]]||0)+1,[escolha[1]]:(v[dia][escolha[1]]||0)+1}}));
+    if(escolha.length!==2||expirou) return;
+    const anterior=votoFeitoSug[dia]||[];
+    const delta={};
+    anterior.forEach(id=>{ delta[id]=(delta[id]||0)-1; });
+    escolha.forEach(id=>{ delta[id]=(delta[id]||0)+1; });
+    setVotosSug(v=>{
+      const diaVotos={...(v[dia]||{})};
+      Object.entries(delta).forEach(([id,d])=>{ diaVotos[id]=Math.max(0,(diaVotos[id]||0)+d); });
+      return {...v,[dia]:diaVotos};
+    });
     setVotoFeitoSug(v=>{
       const novo={...v,[dia]:escolha};
       try{ localStorage.setItem("votoFeitoSemana",JSON.stringify(novo)); }catch(_){}
       return novo;
     });
-    setDoc(doc(db,"estado","votos"),{[dia]:{[escolha[0]]:increment(1),[escolha[1]]:increment(1)}},{merge:true}).catch(()=>{});
+    const mudou=Object.fromEntries(Object.entries(delta).filter(([,d])=>d!==0).map(([id,d])=>[id,increment(d)]));
+    if(Object.keys(mudou).length) setDoc(doc(db,"estado","votos"),{[dia]:mudou},{merge:true}).catch(()=>{});
   }
   async function compartilharApp(){
     const texto="🍲 Conheça o Tempero da Vó — comida caseira brasileira em Toronto! Peça pelo app:";
@@ -988,19 +1037,25 @@ function AppInner() {
                   const aberto=diaAberto===dia;
                   return (
                     <div key={dia} style={{marginBottom:10,border:`1px solid ${BL}`,borderRadius:12,overflow:"hidden"}}>
-                      <button disabled={!!votado||expirou} onClick={()=>setDiaAberto(a=>a===dia?null:dia)}
-                        style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"transparent",border:"none",cursor:votado||expirou?"default":"pointer"}}>
+                      <button disabled={expirou} onClick={()=>{
+                          setDiaAberto(a=>{
+                            if(a===dia){ setSelecaoDia(sd=>({...sd,[dia]:votado||[]})); return null; }
+                            if(votado) setSelecaoDia(sd=>({...sd,[dia]:votado}));
+                            return dia;
+                          });
+                        }}
+                        style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"transparent",border:"none",cursor:expirou?"default":"pointer"}}>
                         <span style={{fontSize:11,fontWeight:700,color:O,letterSpacing:"0.06em",textTransform:"uppercase"}}>{t[`dia_${dia}`]}</span>
                         {votado
-                          ?<span style={{fontSize:11,color:"#3A8A30",fontWeight:700}}>✓ {t.votado}</span>
+                          ?<span style={{fontSize:11,color:"#3A8A30",fontWeight:700}}>✓ {t.votado}{!expirou&&` · ${aberto?"▲":t.alterarVoto}`}</span>
                           :<span style={{fontSize:11,color:MU}}>{aberto?"▲":"▼"} {t.sugEscolher}</span>}
                       </button>
-                      {Array.isArray(votado)&&(
+                      {Array.isArray(votado)&&!aberto&&(
                         <div style={{padding:"0 12px 10px",fontSize:12,color:TI}}>
                           {votado.map(id=>dishById(id)?.nome).filter(Boolean).join(" · ")}
                         </div>
                       )}
-                      {aberto&&!votado&&!expirou&&(
+                      {aberto&&!expirou&&(
                         <div style={{padding:"0 12px 12px"}}>
                           <div style={{fontSize:11,color:O,fontWeight:600,marginBottom:6}}>{sel.length}/2 {t.sugSelecionados}</div>
                           <div style={{maxHeight:220,overflowY:"auto"}}>
@@ -1024,7 +1079,7 @@ function AppInner() {
                           </div>
                           <button disabled={sel.length!==2} onClick={()=>{confirmarSugestaoDia(dia);setDiaAberto(null);}}
                             style={{...s.btnPrinc,marginTop:8,padding:"9px 0",fontSize:13,opacity:sel.length!==2?.5:1}}>
-                            {t.sugConfirmar}
+                            {votado?t.sugSalvarAlteracao:t.sugConfirmar}
                           </button>
                         </div>
                       )}

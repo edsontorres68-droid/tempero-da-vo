@@ -702,7 +702,7 @@ function AppInner() {
   const [sobEncErro,setSobEncErro] = useState("");
   const [sobEncModal,setSobEncModal] = useState(false);
   const [linkCopiado,setLinkCopiado] = useState(false);
-  const PRATOS               = menuDia.pratos;
+  const PRATOS               = menuDia.pratos.map(p=>{ const base=dishById(p.id); return base?{...p,nome:base.nome,icon:base.icon}:p; });
   const precoExtra            = menuDia.precoExtra ?? PRECO_100G_PADRAO;
   const [editando,setEditando]   = useState(false);
   const [menuTemp,setMenuTemp]   = useState(null);

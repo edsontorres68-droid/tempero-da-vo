@@ -1034,7 +1034,7 @@ function AppInner() {
               return (
                 <div key={p.id} style={s.pratoCard}>
                   <div style={{display:"flex",gap:12,alignItems:"flex-start",padding:14}}>
-                    <div style={{flexShrink:0}}><IcoCarne tipo={p.icon} size={78}/></div>
+                    <div style={{flexShrink:0,width:84,height:84,borderRadius:"50%",background:"radial-gradient(circle at 35% 30%, #FFD9A0, #F5A623 62%, #E8963F)",boxShadow:"0 3px 10px rgba(245,166,35,0.45)",display:"flex",alignItems:"center",justifyContent:"center"}}><IcoCarne tipo={p.icon} size={70}/></div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:19,color:O,marginBottom:3,lineHeight:1.2}}>{p.nome}</div>
                       <div style={{fontSize:12,color:MU,lineHeight:1.5,marginBottom:5,wordBreak:"break-word"}}>{p.desc}</div>

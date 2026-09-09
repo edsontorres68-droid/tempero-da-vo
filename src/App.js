@@ -437,6 +437,25 @@ function cicloVotacaoAtual() {
   return cursor.toISOString().slice(0,10);
 }
 
+const DIAS_PEDIDO_NUM = {segunda:1,quarta:3,sexta:5}; // dia da semana (0=Dom) de cada opção de entrega
+function diaUtilPadrao(){
+  const d = getTorontoDate().getDay();
+  const ordem = [["segunda",1],["quarta",3],["sexta",5]];
+  for(const [key,num] of ordem){ if(d<=num) return key; }
+  return "segunda";
+}
+function proximaDataDia(diaKey){
+  const alvo = DIAS_PEDIDO_NUM[diaKey];
+  const hoje = getTorontoDate();
+  const diff = (alvo - hoje.getDay() + 7) % 7;
+  const data = new Date(hoje);
+  data.setDate(data.getDate()+diff);
+  return data;
+}
+function fmtDataCurta(data){
+  return data.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
+}
+
 function tempoRestante() {
   if (!votacaoAberta()) return null;
   const diff = calcPrazo() - getTorontoDate();
@@ -689,7 +708,8 @@ function AppInner() {
   const SENHA_KEY = "tdv_senha";
   function getSenha() { try { return localStorage.getItem(SENHA_KEY)||"Gitorres11121984"; } catch(_){ return "Gitorres11121984"; } }
   function setSenha(s) { try { localStorage.setItem(SENHA_KEY,s); } catch(_){} }
-  const [menuDia,setMenuDia] = useState({pratos:PRATOS_BASE,aviso:"",precoExtra:PRECO_100G_PADRAO});
+  const [menuDia,setMenuDia] = useState({pratosPorDia:{segunda:PRATOS_BASE,quarta:PRATOS_BASE,sexta:PRATOS_BASE},aviso:"",precoExtra:PRECO_100G_PADRAO});
+  const [diaPedido,setDiaPedido] = useState(diaUtilPadrao());
   const [cardapio,setCardapio] = useState(()=>{
     try{ const s=JSON.parse(localStorage.getItem("cardapioCompleto")||"null"); if(s&&s.carne&&s.veg) return s; }catch(_){}
     return CARDAPIO_PADRAO;
@@ -702,7 +722,7 @@ function AppInner() {
   const [sobEncErro,setSobEncErro] = useState("");
   const [sobEncModal,setSobEncModal] = useState(false);
   const [linkCopiado,setLinkCopiado] = useState(false);
-  const PRATOS               = menuDia.pratos.map(p=>{ const base=dishById(p.id); return base?{...p,nome:base.nome,icon:base.icon}:p; });
+  const PRATOS               = (menuDia.pratosPorDia?.[diaPedido]||[]).map(p=>{ const base=dishById(p.id); return base?{...p,nome:base.nome,icon:base.icon}:p; });
   const precoExtra            = menuDia.precoExtra ?? PRECO_100G_PADRAO;
   const [editando,setEditando]   = useState(false);
   const [menuTemp,setMenuTemp]   = useState(null);
@@ -761,7 +781,11 @@ function AppInner() {
   useEffect(()=>{ const id=setInterval(()=>setTick(n=>n+1),60000); return()=>clearInterval(id); },[]);
   useEffect(()=>{
     const unsubMenu = onSnapshot(doc(db,"estado","menu"), snap=>{
-      if(snap.exists()){ const d=snap.data(); setMenuDia({pratos:d.pratos||PRATOS_BASE,aviso:d.aviso||"",precoExtra:d.precoExtra??PRECO_100G_PADRAO}); }
+      if(snap.exists()){
+        const d=snap.data();
+        const padrao={segunda:PRATOS_BASE,quarta:PRATOS_BASE,sexta:PRATOS_BASE};
+        setMenuDia({pratosPorDia:d.pratosPorDia||padrao,aviso:d.aviso||"",precoExtra:d.precoExtra??PRECO_100G_PADRAO});
+      }
     }, ()=>{});
     const unsubCardapio = onSnapshot(doc(db,"estado","cardapioCompleto"), snap=>{
       if(snap.exists()){ const d=snap.data(); if(d.carne&&d.veg){ setCardapio(d); try{ localStorage.setItem("cardapioCompleto",JSON.stringify(d)); }catch(_){} } }
@@ -877,6 +901,11 @@ function AppInner() {
     setSobEncModal(false);
   }
 
+  function escolherDiaPedido(novoDia){
+    if(novoDia===diaPedido) return;
+    setDiaPedido(novoDia);
+    setCarrinho({}); setExtra({}); setObs({});
+  }
   function apagarPedido(id){
     if(window.confirm(t.confirmApagar)) setPedidos(p=>p.filter(x=>x.id!==id));
   }
@@ -915,11 +944,11 @@ function AppInner() {
     const lG=gVal>0?`💛 Gorjeta: ${fmt(gVal)}\n`:"";
     const lP=form.pag==="etransfer"?"📧 e-Transfer":form.pag==="dinheiro"?"💵 Dinheiro":"💳 Cartão";
     const end=form.tipo==="entrega"?`📍 ${form.end}${form.endApto?` Apt ${form.endApto}`:""}, ${form.endCity||""}, ${form.endProv||""} ${form.endCep||""}${form.endBuzzer?`\n🔔 Buzzer: ${form.endBuzzer}`:""}`:"🏠 Retirada";
-    const msgCoz=`🔔 *PEDIDO #${num}*${form.alergia?"\n🚨 ALERGIA — LEIA ANTES DE PREPARAR":""}\n\n${lns}\n\n${lF}${lG}💰 *Total: ${fmt(total)}*\n${lP}${lA}\n\n👤 ${form.nome} · 📞 ${form.tel}\n${end}\n⏱ ${hr}`;
+    const msgCoz=`🔔 *PEDIDO #${num}*${form.alergia?"\n🚨 ALERGIA — LEIA ANTES DE PREPARAR":""}\n\n📅 ${t[`dia_${diaPedido}`]} (${fmtDataCurta(proximaDataDia(diaPedido))})\n\n${lns}\n\n${lF}${lG}💰 *Total: ${fmt(total)}*\n${lP}${lA}\n\n👤 ${form.nome} · 📞 ${form.tel}\n${end}\n⏱ ${hr}`;
     const tel=form.tel.replace(/\D/g,"");
     setClientes(p=>p.find(c=>c.tel.replace(/\D/g,"")===tel)?p:[...p,{id:Date.now(),nome:form.nome,tel:form.tel}]);
     try{ localStorage.setItem("dadosCliente",JSON.stringify({nome:form.nome,tel:form.tel,end:form.end,endApto:form.endApto,endBuzzer:form.endBuzzer,endCity:form.endCity,endProv:form.endProv,endCep:form.endCep})); }catch(_){}
-    const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endApto:form.endApto||"",endBuzzer:form.endBuzzer||"",endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
+    const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,dia:diaPedido,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endApto:form.endApto||"",endBuzzer:form.endBuzzer||"",endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
     setPedidos(p=>[novo,...p]);setNovos(n=>n+1);
     setAlerta({num,nome:form.nome,total,hora:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc});
     window.location.href=`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msgCoz)}`;
@@ -1038,11 +1067,21 @@ function AppInner() {
               </div>
             </div>
 
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
+              {DIAS_SUGESTAO_KEYS.map(dia=>{
+                const ativo=diaPedido===dia;
+                return (
+                  <button key={dia} onClick={()=>escolherDiaPedido(dia)}
+                    style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"9px 4px",borderRadius:12,border:ativo?`2px solid ${O}`:`1px solid ${BL}`,background:ativo?CA:P,cursor:"pointer"}}>
+                    <span style={{fontSize:12.5,fontWeight:700,color:ativo?O:TI}}>{t[`dia_${dia}`]}</span>
+                    <span style={{fontSize:10.5,color:MU}}>{fmtDataCurta(proximaDataDia(dia))}</span>
+                  </button>
+                );
+              })}
+            </div>
             <div style={s.pratosHoje}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <div style={{...s.cardTit,fontSize:11.5,opacity:0.85}}>{t.pratosDia}</div>
-                {!expirou&&restante&&<div style={{fontSize:9.5,color:O,background:P,border:`1px solid ${BL}`,borderRadius:20,padding:"2px 7px"}}>⏱ {restante} {t.prazoLabel}</div>}
-                {expirou&&<div style={{fontSize:9.5,color:"#E05050",fontWeight:700}}>{t.prazoOff}</div>}
+                <div style={{...s.cardTit,fontSize:11.5,opacity:0.85}}>{t.pratosDia} — {t[`dia_${diaPedido}`]}</div>
               </div>
               <div style={{display:"flex",gap:8}}>
                 {PRATOS.map((p,i)=>(
@@ -1062,7 +1101,7 @@ function AppInner() {
               </div>
             )}
 
-            {(expirou?PRATOS.slice(0,1):PRATOS).map(p=>{
+            {PRATOS.map(p=>{
               const q=carrinho[p.id]||0, painelObs=obsAberto===p.id, temObs=obs[p.id]?.trim();
               return (
                 <div key={p.id} style={s.pratoCard}>
@@ -1276,6 +1315,7 @@ function AppInner() {
                       <span style={{fontWeight:600,fontSize:13.5,color:TI}}>{p.cliente} <span style={{fontSize:11,color:MU,fontWeight:400}}>#{p.num}</span></span>
                       <span style={{fontSize:11,color:MU}}>{p.hora}</span>
                     </div>
+                    {p.dia&&<div style={{fontSize:10.5,color:O,fontWeight:700,marginBottom:3}}>📅 {t[`dia_${p.dia}`]}</div>}
                     <div style={{fontSize:11.5,color:MU,lineHeight:1.4,marginBottom:4}}>{p.itens}</div>
                     <div style={{fontSize:11,color:"#4A7A3A",fontWeight:600,marginBottom:4}}>{t.prevLabel} {p.previsao}</div>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
@@ -1518,19 +1558,27 @@ function AppInner() {
             <div style={s.card}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                 <div><div style={{fontWeight:700,fontSize:14,color:O}}>{t.cozPratos}</div><div style={{fontSize:11,color:MU,marginTop:2}}>{t.cozSub}</div></div>
-                <button style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${O}`,background:"transparent",fontSize:12,cursor:"pointer",color:O,fontWeight:600}} onClick={()=>{setMenuTemp({pratos:PRATOS.map(p=>({...p})),aviso:menuDia.aviso||"",precoExtra:precoExtra});setEditando(true);}}>{t.cozEdit}</button>
+                <button style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${O}`,background:"transparent",fontSize:12,cursor:"pointer",color:O,fontWeight:600}} onClick={()=>{setMenuTemp({pratosPorDia:{segunda:(menuDia.pratosPorDia?.segunda||PRATOS_BASE).map(p=>({...p})),quarta:(menuDia.pratosPorDia?.quarta||PRATOS_BASE).map(p=>({...p})),sexta:(menuDia.pratosPorDia?.sexta||PRATOS_BASE).map(p=>({...p}))},aviso:menuDia.aviso||"",precoExtra:precoExtra});setEditando(true);}}>{t.cozEdit}</button>
               </div>
-              <div style={{display:"flex",gap:10}}>
-                {PRATOS.map((p,i)=>(
-                  <div key={i} style={s.pratoVis}>
-                    <IcoCarne tipo={p.icon} size={44}/>
-                    <div style={{fontSize:11,fontWeight:600,textAlign:"center",color:TI,wordBreak:"break-word",lineHeight:1.3}}>{p.nome}</div>
-                    <div style={{fontSize:11,color:O,fontWeight:700}}>{fmt(p.preco)}</div>
+              {DIAS_SUGESTAO_KEYS.map(dia=>(
+                <div key={dia} style={{marginBottom:10}}>
+                  <div style={{fontSize:10,fontWeight:700,color:O,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:5}}>{t[`dia_${dia}`]}</div>
+                  <div style={{display:"flex",gap:10}}>
+                    {(menuDia.pratosPorDia?.[dia]||[]).map((p0,i)=>{
+                      const base=dishById(p0.id); const p={...p0,nome:base?.nome||p0.nome,icon:base?.icon||p0.icon};
+                      return (
+                        <div key={i} style={s.pratoVis}>
+                          <IcoCarne tipo={p.icon} size={40}/>
+                          <div style={{fontSize:10.5,fontWeight:600,textAlign:"center",color:TI,wordBreak:"break-word",lineHeight:1.3}}>{p.nome}</div>
+                          <div style={{fontSize:10.5,color:O,fontWeight:700}}>{fmt(p.preco)}</div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
               {menuDia.aviso&&menuDia.aviso.trim()&&(
-                <div style={{marginTop:10,background:CA,borderRadius:8,padding:"7px 10px",border:`1px solid ${O}`}}>
+                <div style={{marginTop:6,background:CA,borderRadius:8,padding:"7px 10px",border:`1px solid ${O}`}}>
                   <div style={{fontSize:10,color:O,fontWeight:700,marginBottom:2}}>{t.avisoAtivo}</div>
                   <div style={{fontSize:12,color:TI}}>{menuDia.aviso}</div>
                 </div>
@@ -1990,37 +2038,42 @@ function AppInner() {
               <button style={{border:"none",background:"transparent",fontSize:16,cursor:"pointer",color:OE}} onClick={()=>setEditando(false)}>✕</button>
             </div>
             <div style={{fontSize:12,color:"#6B5040",marginBottom:10}}>{t.editDef}</div>
-            {menuTemp.pratos.map((prato,idx)=>(
-              <div key={idx} style={{marginBottom:12,background:"#FBF6EA",borderRadius:12,border:"1px solid #8B5A2B44",padding:"12px 14px"}}>
-                <div style={{fontSize:12,color:OE,fontWeight:700,marginBottom:8}}>{t.editPrato} {idx+1}</div>
-                <div style={{maxHeight:150,overflowY:"auto",marginBottom:8}}>
-                  {[{label:t.cComCarne,lista:cardapio.carne},{label:t.cSemCarne,lista:cardapio.veg}].map(g=>(
-                    <div key={g.label}>
-                      <div style={{fontSize:10,color:OE,fontWeight:700,padding:"4px 0 2px"}}>{g.label}</div>
-                      {g.lista.map(c=>(
-                        <button key={c.id} onClick={()=>setMenuTemp(m=>({...m,pratos:m.pratos.map((p,i)=>i===idx?{...p,id:c.id,nome:c.nome,icon:c.icon}:p)}))}
-                          style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"6px 8px",border:prato.id===c.id?`2px solid ${OE}`:`1px solid #8B5A2B44`,borderRadius:8,background:prato.id===c.id?"#F5EDD5":"transparent",cursor:"pointer",marginBottom:3,color:prato.id===c.id?OE:"#6B5040"}}>
-                          <IcoCarne tipo={c.icon} size={22}/>
-                          <span style={{flex:1,textAlign:"left",fontSize:12}}>{c.nome}</span>
-                          {prato.id===c.id&&<span style={{color:OE,fontWeight:700,fontSize:13}}>✓</span>}
-                        </button>
+            {DIAS_SUGESTAO_KEYS.map(dia=>(
+              <div key={dia} style={{marginBottom:16}}>
+                <div style={{fontSize:12.5,fontWeight:700,color:O,letterSpacing:"0.04em",textTransform:"uppercase",marginBottom:8,borderBottom:`1px solid ${BL}`,paddingBottom:4}}>{t[`dia_${dia}`]}</div>
+                {menuTemp.pratosPorDia[dia].map((prato,idx)=>(
+                  <div key={idx} style={{marginBottom:12,background:"#FBF6EA",borderRadius:12,border:"1px solid #8B5A2B44",padding:"12px 14px"}}>
+                    <div style={{fontSize:12,color:OE,fontWeight:700,marginBottom:8}}>{t.editPrato} {idx+1}</div>
+                    <div style={{maxHeight:130,overflowY:"auto",marginBottom:8}}>
+                      {[{label:t.cComCarne,lista:cardapio.carne},{label:t.cSemCarne,lista:cardapio.veg}].map(g=>(
+                        <div key={g.label}>
+                          <div style={{fontSize:10,color:OE,fontWeight:700,padding:"4px 0 2px"}}>{g.label}</div>
+                          {g.lista.map(c=>(
+                            <button key={c.id} onClick={()=>setMenuTemp(m=>({...m,pratosPorDia:{...m.pratosPorDia,[dia]:m.pratosPorDia[dia].map((p,i)=>i===idx?{...p,id:c.id,nome:c.nome,icon:c.icon}:p)}}))}
+                              style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"6px 8px",border:prato.id===c.id?`2px solid ${OE}`:`1px solid #8B5A2B44`,borderRadius:8,background:prato.id===c.id?"#F5EDD5":"transparent",cursor:"pointer",marginBottom:3,color:prato.id===c.id?OE:"#6B5040"}}>
+                              <IcoCarne tipo={c.icon} size={22}/>
+                              <span style={{flex:1,textAlign:"left",fontSize:12}}>{c.nome}</span>
+                              {prato.id===c.id&&<span style={{color:OE,fontWeight:700,fontSize:13}}>✓</span>}
+                            </button>
+                          ))}
+                        </div>
                       ))}
                     </div>
-                  ))}
-                </div>
-                <label style={s.lbl}>{t.editDesc}</label>
-                <input style={s.inp} value={prato.desc} onChange={e=>setMenuTemp(m=>({...m,pratos:m.pratos.map((p,i)=>i===idx?{...p,desc:e.target.value}:p)}))} placeholder={t.descPlaceholder||"Ex: arroz, feijão, salada e frango grelhado"}/>
-                <div style={{display:"flex",gap:8,alignItems:"center",marginTop:8}}>
-                  <label style={{...s.lbl,margin:0}}>{t.editPreco}</label>
-                  <input style={{...s.inp,width:80}} value={prato.preco}
-                    onChange={e=>setMenuTemp(m=>({...m,pratos:m.pratos.map((p,i)=>i===idx?{...p,preco:e.target.value}:p)}))}
-                    onBlur={e=>{const n=parseFloat(String(e.target.value).replace(",","."));setMenuTemp(m=>({...m,pratos:m.pratos.map((p,i)=>i===idx?{...p,preco:isNaN(n)?p.preco:n}:p)}));}}/>
-                </div>
+                    <label style={s.lbl}>{t.editDesc}</label>
+                    <input style={s.inp} value={prato.desc} onChange={e=>setMenuTemp(m=>({...m,pratosPorDia:{...m.pratosPorDia,[dia]:m.pratosPorDia[dia].map((p,i)=>i===idx?{...p,desc:e.target.value}:p)}}))} placeholder={t.descPlaceholder||"Ex: arroz, feijão, salada e frango grelhado"}/>
+                    <div style={{display:"flex",gap:8,alignItems:"center",marginTop:8}}>
+                      <label style={{...s.lbl,margin:0}}>{t.editPreco}</label>
+                      <input style={{...s.inp,width:80}} value={prato.preco}
+                        onChange={e=>setMenuTemp(m=>({...m,pratosPorDia:{...m.pratosPorDia,[dia]:m.pratosPorDia[dia].map((p,i)=>i===idx?{...p,preco:e.target.value}:p)}}))}
+                        onBlur={e=>{const n=parseFloat(String(e.target.value).replace(",","."));setMenuTemp(m=>({...m,pratosPorDia:{...m.pratosPorDia,[dia]:m.pratosPorDia[dia].map((p,i)=>i===idx?{...p,preco:isNaN(n)?p.preco:n}:p)}}));}}/>
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
             <button style={{...s.btnPrinc,background:OE,marginBottom:16}} onClick={()=>{
-              if(!menuTemp?.pratos.length) return;
-              const novoMenu={pratos:menuTemp.pratos.map(p=>({...p,preco:parseFloat(String(p.preco).replace(",","."))||35})),aviso:menuTemp.aviso||"",precoExtra:parseFloat(String(menuTemp.precoExtra).replace(",","."))||PRECO_100G_PADRAO};
+              const limpo=d=>d.map(p=>({...p,preco:parseFloat(String(p.preco).replace(",","."))||35}));
+              const novoMenu={pratosPorDia:{segunda:limpo(menuTemp.pratosPorDia.segunda),quarta:limpo(menuTemp.pratosPorDia.quarta),sexta:limpo(menuTemp.pratosPorDia.sexta)},aviso:menuTemp.aviso||"",precoExtra:parseFloat(String(menuTemp.precoExtra).replace(",","."))||PRECO_100G_PADRAO};
               setMenuDia(novoMenu);
               setDoc(doc(db,"estado","menu"),novoMenu).catch(()=>{});
               setCarrinho({});setExtra({});setEditando(false);

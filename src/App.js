@@ -670,6 +670,7 @@ function AppInner() {
   const [checkout,setCheckout]   = useState(false);
   const [alerta,setAlerta]       = useState(null);
   const [novos,setNovos]         = useState(0);
+  useEffect(()=>{ if(aba==="pedidos") setNovos(0); },[aba]);
   const [verHistorico,setVerHistorico] = useState(false);
   const [votosSug,setVotosSug]         = useState({segunda:{},quarta:{},sexta:{}});
   const [votoFeitoSug,setVotoFeitoSug] = useState(()=>{

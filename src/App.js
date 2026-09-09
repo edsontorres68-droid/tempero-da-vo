@@ -24,6 +24,7 @@ if (typeof document !== "undefined" && !document.getElementById("tdv-font")) {
 const SEU_WHATSAPP  = "16478634945";
 const SITE_URL       = "https://www.temperodavo.ca";
 const INSTAGRAM_GI   = "sweetsda_gi";
+const ETRANSFER_EMAIL = "gisele.torres180@mail.com";
 const TAXA_ENTREGA  = 8.0;
 const PRECO_100G_PADRAO = 4.0;
 const TEMPO_ENT     = 45;
@@ -167,6 +168,7 @@ const T = {
     pagLabel:"Pagamento",tipoLabel:"Tipo de entrega",endLabel:"Endereço",endPh:"123 Main St, Apt 4, Toronto, ON M5V 1A1",
     endApto:"Apto (opcional)",endBuzzer:"Buzzer (opcional)",
     pEt:"e-Transfer",pDin:"Dinheiro",pCart:"Cartão",
+    etransferPara:"Enviar o e-Transfer para:",
     tEnt:"🛵 Entrega",tRet:"🏠 Retirada",
     confirmarBtn:"Confirmar e enviar pedido ✓",
     eNome:"Preencha nome e telefone.",eEnd:"Preencha o endereço completo (rua, cidade, província e CEP).",
@@ -277,6 +279,7 @@ const T = {
     pagLabel:"Payment",tipoLabel:"Delivery type",endLabel:"Address",endPh:"123 Main St, Apt 4, Toronto, ON M5V 1A1",
     endApto:"Apt (optional)",endBuzzer:"Buzzer (optional)",
     pEt:"e-Transfer",pDin:"Cash",pCart:"Card",
+    etransferPara:"Send the e-Transfer to:",
     tEnt:"🛵 Delivery",tRet:"🏠 Pick up",
     confirmarBtn:"Confirm and send order ✓",
     eNome:"Fill in name and phone.",eEnd:"Please fill in the complete address (street, city, province and postal code).",
@@ -1754,6 +1757,11 @@ function AppInner() {
                 </button>
               ))}
             </div>
+            {form.pag==="etransfer"&&(
+              <div style={{marginTop:-2,marginBottom:10,fontSize:12,color:"#3B6030",background:"#EEF6E8",padding:"7px 10px",borderRadius:8,textAlign:"center"}}>
+                📧 {t.etransferPara} <strong>{ETRANSFER_EMAIL}</strong>
+              </div>
+            )}
             <label style={s.lbl}>{t.tipoLabel}</label>
             <div style={{display:"flex",gap:8,marginBottom:8}}>
               {["entrega","retirada"].map(tp=>(

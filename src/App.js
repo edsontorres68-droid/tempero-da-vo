@@ -452,7 +452,7 @@ const deveEnviarLembrete = () => {
 
 const pratoMaisVotado = (votos,pratos) => { if(!pratos?.length) return null; return pratos.reduce((best,p)=>(votos[p.id]||0)>(votos[best.id]||0)?p:best,pratos[0]); };
 
-const P=`#0A0A0A`,O=`#C9A84C`,OE=`#7A5A1A`,CR=`#F5EDD5`,CA=`#1A1408`,TI=`#F5EDD5`,MU=`#9A8050`,BO=`#3A2E10`,BL=`#C9A84C44`,VE=`#25D366`;
+const P=`#FFFCF7`,O=`#8B5A2B`,OE=`#5C3D1E`,CR=`#FFFFFF`,CA=`#F3E6D5`,TI=`#3B2A1A`,MU=`#8A7256`,BO=`#E0CBAE`,BL=`#8B5A2B33`,VE=`#25D366`;
 
 const IcoPanel = ({size=44})=>(
   <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
@@ -506,36 +506,84 @@ const IcoSalada = ({size=40})=>(
   </svg>
 );
 const IcoCarne = ({size=44,tipo="carne"})=>{
+  const uid=tipo; // sufixo pros gradientes (evita conflito visual entre tipos diferentes)
+  const defsComuns=(
+    <defs>
+      <radialGradient id={`prato-${uid}`} cx="50%" cy="35%" r="70%">
+        <stop offset="0%" stopColor="#fff" stopOpacity="0.55"/>
+        <stop offset="35%" stopColor="#fff" stopOpacity="0"/>
+      </radialGradient>
+      <linearGradient id={`sombra-${uid}`} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="#000" stopOpacity="0"/>
+        <stop offset="100%" stopColor="#000" stopOpacity="0.22"/>
+      </linearGradient>
+    </defs>
+  );
+  const vapor=(
+    <g opacity="0.5" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" fill="none">
+      <path d="M20 14c-2 -3 2 -4 0 -7"/>
+      <path d="M28 12c-2 -3 2 -4 0 -7"/>
+      <path d="M36 14c-2 -3 2 -4 0 -7"/>
+    </g>
+  );
   if(tipo==="frango"||tipo==="veg") return (
     <svg width={size} height={size} viewBox="0 0 56 56" fill="none">
-      <ellipse cx="28" cy="44" rx="22" ry="7" fill="#F5E8CC"/>
-      <ellipse cx="28" cy="30" rx="14" ry="11" fill="#D4813A"/>
-      <ellipse cx="28" cy="28" rx="12" ry="9" fill="#E8963F"/>
-      <rect x="34" y="20" width="3" height="14" rx="1.5" fill="#F0DEB0"/>
+      {defsComuns}
+      <ellipse cx="28" cy="45" rx="23" ry="6.5" fill="#000" opacity="0.10"/>
+      <ellipse cx="28" cy="43" rx="22" ry="6.5" fill="#FBF3E4"/>
+      <ellipse cx="28" cy="42.5" rx="22" ry="6" fill="#fff"/>
+      <ellipse cx="28" cy="30" rx="15" ry="11.5" fill="#B8631F"/>
+      <ellipse cx="28" cy="28.5" rx="13.5" ry="10" fill="#E8963F"/>
+      <ellipse cx="28" cy="28.5" rx="13.5" ry="10" fill={`url(#sombra-${uid})`}/>
+      <path d="M17 26c2 -6 6 -9 11 -9s9 3 11 9" stroke="#C9761F" strokeWidth="1.6" opacity="0.55" fill="none" strokeLinecap="round"/>
+      <rect x="35" y="19" width="3" height="15" rx="1.5" fill="#F2E2BE" transform="rotate(8 36 26)"/>
+      <ellipse cx="28" cy="28.5" rx="13.5" ry="10" fill={`url(#prato-${uid})`}/>
+      {vapor}
     </svg>
   );
   if(tipo==="costela") return (
     <svg width={size} height={size} viewBox="0 0 56 56" fill="none">
-      <ellipse cx="28" cy="44" rx="22" ry="7" fill="#F5E8CC"/>
-      <rect x="14" y="24" width="28" height="16" rx="4" fill="#8B3E24"/>
-      <rect x="18" y="18" width="4" height="14" rx="2" fill="#F0DEB0"/>
-      <rect x="26" y="16" width="4" height="16" rx="2" fill="#F0DEB0"/>
-      <rect x="34" y="18" width="4" height="14" rx="2" fill="#F0DEB0"/>
+      {defsComuns}
+      <ellipse cx="28" cy="45" rx="23" ry="6.5" fill="#000" opacity="0.10"/>
+      <ellipse cx="28" cy="43" rx="22" ry="6.5" fill="#FBF3E4"/>
+      <ellipse cx="28" cy="42.5" rx="22" ry="6" fill="#fff"/>
+      <rect x="13" y="23" width="30" height="17" rx="5" fill="#5E2515"/>
+      <rect x="13" y="23" width="30" height="10" rx="5" fill="#8B3E24"/>
+      <rect x="17" y="17" width="4.2" height="15" rx="2.1" fill="#F2E2BE"/>
+      <rect x="25.5" y="15" width="4.2" height="17" rx="2.1" fill="#F2E2BE"/>
+      <rect x="34" y="17" width="4.2" height="15" rx="2.1" fill="#F2E2BE"/>
+      <path d="M15 27h26M15 32h26" stroke="#3F1A0E" strokeWidth="1.1" opacity="0.4"/>
+      <rect x="13" y="23" width="30" height="17" rx="5" fill={`url(#prato-${uid})`}/>
+      {vapor}
     </svg>
   );
   if(tipo==="linguica") return (
     <svg width={size} height={size} viewBox="0 0 56 56" fill="none">
-      <ellipse cx="28" cy="44" rx="22" ry="7" fill="#F5E8CC"/>
-      <ellipse cx="20" cy="30" rx="8" ry="5" fill="#8B2E10" transform="rotate(-20 20 30)"/>
-      <ellipse cx="36" cy="28" rx="8" ry="5" fill="#8B2E10" transform="rotate(20 36 28)"/>
-      <ellipse cx="28" cy="33" rx="8" ry="5" fill="#A83820"/>
+      {defsComuns}
+      <ellipse cx="28" cy="45" rx="23" ry="6.5" fill="#000" opacity="0.10"/>
+      <ellipse cx="28" cy="43" rx="22" ry="6.5" fill="#FBF3E4"/>
+      <ellipse cx="28" cy="42.5" rx="22" ry="6" fill="#fff"/>
+      <ellipse cx="19" cy="31" rx="9" ry="5.6" fill="#6E2410" transform="rotate(-20 19 31)"/>
+      <ellipse cx="37" cy="29" rx="9" ry="5.6" fill="#6E2410" transform="rotate(20 37 29)"/>
+      <ellipse cx="28" cy="34" rx="9" ry="5.6" fill="#8B2E10"/>
+      <ellipse cx="19" cy="31" rx="9" ry="5.6" fill={`url(#sombra-${uid})`} transform="rotate(-20 19 31)"/>
+      <ellipse cx="37" cy="29" rx="9" ry="5.6" fill={`url(#sombra-${uid})`} transform="rotate(20 37 29)"/>
+      <ellipse cx="17" cy="28" rx="2.6" ry="1.3" fill="#fff" opacity="0.35" transform="rotate(-20 17 28)"/>
+      <ellipse cx="35" cy="26" rx="2.6" ry="1.3" fill="#fff" opacity="0.35" transform="rotate(20 35 26)"/>
+      {vapor}
     </svg>
   );
   return (
     <svg width={size} height={size} viewBox="0 0 56 56" fill="none">
-      <ellipse cx="28" cy="44" rx="22" ry="7" fill="#F5E8CC"/>
-      <ellipse cx="28" cy="30" rx="15" ry="10" fill="#7A3520"/>
-      <ellipse cx="27" cy="28" rx="13" ry="8" fill="#9B4A2A"/>
+      {defsComuns}
+      <ellipse cx="28" cy="45" rx="23" ry="6.5" fill="#000" opacity="0.10"/>
+      <ellipse cx="28" cy="43" rx="22" ry="6.5" fill="#FBF3E4"/>
+      <ellipse cx="28" cy="42.5" rx="22" ry="6" fill="#fff"/>
+      <ellipse cx="28" cy="30" rx="16" ry="11" fill="#5A2513"/>
+      <ellipse cx="27" cy="28.5" rx="14" ry="9" fill="#9B4A2A"/>
+      <path d="M17 25l20 7M17 30l20 6" stroke="#5A2513" strokeWidth="1.3" opacity="0.4" strokeLinecap="round"/>
+      <ellipse cx="27" cy="28.5" rx="14" ry="9" fill={`url(#prato-${uid})`}/>
+      {vapor}
     </svg>
   );
 };
@@ -581,12 +629,12 @@ class ErrorBoundary extends Component {
   render(){
     if(this.state.erro){
       return (
-        <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"#0A0A0A",color:"#F5E8CC",padding:24,textAlign:"center",fontFamily:"sans-serif"}}>
+        <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:P,color:TI,padding:24,textAlign:"center",fontFamily:"sans-serif"}}>
           <div style={{fontSize:40,marginBottom:12}}>😔</div>
           <div style={{fontSize:16,fontWeight:700,marginBottom:8}}>Ops, algo deu errado</div>
-          <div style={{fontSize:13,color:"#B8A888",marginBottom:20,maxWidth:320}}>Tenta recarregar a página. Se continuar acontecendo, avise a gente.</div>
-          <button onClick={()=>window.location.reload()} style={{padding:"10px 24px",borderRadius:10,border:"none",background:"#E8963F",color:"#1A1408",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16}}>Recarregar</button>
-          <div style={{fontSize:10.5,color:"#6B5A44",maxWidth:340,wordBreak:"break-word",background:"#141414",border:"1px solid #2A2A2A",borderRadius:8,padding:"10px 12px",textAlign:"left"}}>
+          <div style={{fontSize:13,color:MU,marginBottom:20,maxWidth:320}}>Tenta recarregar a página. Se continuar acontecendo, avise a gente.</div>
+          <button onClick={()=>window.location.reload()} style={{padding:"10px 24px",borderRadius:10,border:"none",background:O,color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16}}>Recarregar</button>
+          <div style={{fontSize:10.5,color:MU,maxWidth:340,wordBreak:"break-word",background:CA,border:`1px solid ${BL}`,borderRadius:8,padding:"10px 12px",textAlign:"left"}}>
             <strong>Detalhe técnico (manda print pra Claude):</strong><br/>
             {String(this.state.erro?.message||this.state.erro)}
           </div>
@@ -864,7 +912,7 @@ function AppInner() {
     heroTit:{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:20,color:O},
     baseRow:{display:"flex",justifyContent:"space-between",borderTop:`1px solid ${BL}`,paddingTop:12},
     baseItem:{display:"flex",flexDirection:"column",alignItems:"center",gap:5,fontSize:10.5,color:MU,flex:1},
-    pratosHoje:{background:"#110D02",border:`1px solid ${BL}`,borderRadius:14,padding:"12px 14px",marginBottom:12},
+    pratosHoje:{background:CA,border:`1px solid ${BL}`,borderRadius:14,padding:"12px 14px",marginBottom:12},
     cardTit:{fontWeight:700,fontSize:13,color:O,marginBottom:10},
     pratoVis:{display:"flex",flexDirection:"column",alignItems:"center",gap:5,background:CA,border:`1px solid ${BL}`,borderRadius:12,padding:"10px 8px",flex:1,minWidth:0},
     pratoCard:{background:CA,border:`1px solid ${BL}`,borderRadius:16,marginBottom:12,overflow:"hidden"},
@@ -872,7 +920,7 @@ function AppInner() {
     itemCart:{background:CA,border:`1px solid ${BL}`,borderRadius:14,padding:12,display:"flex",gap:10,alignItems:"center"},
     resumo:{background:CA,border:`1px solid ${BL}`,borderRadius:14,padding:"12px 14px",marginBottom:12},
     resumoL:{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:13,marginBottom:7},
-    step:{display:"flex",alignItems:"center",gap:6,background:"#0A0A0A",borderRadius:20,padding:"3px 8px",flexShrink:0,border:`1px solid ${BL}`},
+    step:{display:"flex",alignItems:"center",gap:6,background:CA,borderRadius:20,padding:"3px 8px",flexShrink:0,border:`1px solid ${BL}`},
     stepBtn:{width:22,height:22,borderRadius:"50%",border:"none",background:"transparent",color:O,fontSize:14,cursor:"pointer"},
     stepN:{minWidth:16,textAlign:"center",fontWeight:600,fontSize:13,color:O},
     btnAdd:{width:26,height:26,borderRadius:"50%",border:`1.5px solid ${O}`,background:"transparent",color:O,fontSize:18,cursor:"pointer",flexShrink:0},
@@ -885,7 +933,7 @@ function AppInner() {
     overlay:{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",display:"flex",alignItems:"flex-end",justifyContent:"center",zIndex:50},
     modal:{width:"100%",maxWidth:420,background:CR,borderRadius:"22px 22px 0 0",padding:"18px 18px 28px",maxHeight:"85vh",overflowY:"auto"},
     lbl:{display:"block",fontSize:12,color:OE,margin:"10px 0 4px"},
-    inp:{width:"100%",padding:"9px 11px",borderRadius:9,border:"1px solid #C9A84C66",fontSize:13,background:"#FBF6EA",color:"#2A1F00",fontFamily:"inherit",boxSizing:"border-box"},
+    inp:{width:"100%",padding:"9px 11px",borderRadius:9,border:"1px solid #8B5A2B66",fontSize:13,background:"#FBF6EA",color:"#2A1F00",fontFamily:"inherit",boxSizing:"border-box"},
   };
 
   const NAV = t.nav;
@@ -894,7 +942,7 @@ function AppInner() {
     <div style={s.page}>
 
       {alerta&&(
-        <div style={{width:"100%",background:alerta.alergia?"#A03030":"#1A0F00",border:`1px solid ${alerta.alergia?"#FF6060":O}`,color:alerta.alergia?"#fff":O,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{width:"100%",background:alerta.alergia?"#A03030":"#FBF3E4",border:`1px solid ${alerta.alergia?"#FF6060":O}`,color:alerta.alergia?"#fff":O,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:20}}>{alerta.alergia?"🚨":"🔔"}</span>
             <div>
@@ -998,7 +1046,7 @@ function AppInner() {
                   </div>
                   {q>0&&(
                     <div style={{borderTop:`1px solid ${BL}`,padding:"10px 14px",display:"flex",flexDirection:"column",gap:8}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0A0A0A",borderRadius:8,padding:"7px 10px",border:`1px solid ${BL}`}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:CA,borderRadius:8,padding:"7px 10px",border:`1px solid ${BL}`}}>
                         <div style={{fontSize:12.5,fontWeight:600,color:TI}}>{t.extra} <span style={{fontSize:11,fontWeight:400,color:MU}}>+{fmt(precoExtra)}/{t.extraPor}</span></div>
                         <div style={s.step}>
                           <button style={s.stepBtn} onClick={()=>setExtra(e=>({...e,[p.id]:Math.max(0,(e[p.id]||0)-1)}))}>−</button>
@@ -1028,7 +1076,7 @@ function AppInner() {
             <div style={s.votCard}>
               <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:19,color:O,marginBottom:4}}>{expirou?t.votOff:t.votTit}</div>
               {!expirou&&restante&&(
-                <div style={{display:"flex",alignItems:"center",gap:6,background:"#1A1408",border:`1px solid ${O}`,borderRadius:20,padding:"5px 12px",marginBottom:10,width:"fit-content"}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,background:CA,border:`1px solid ${O}`,borderRadius:20,padding:"5px 12px",marginBottom:10,width:"fit-content"}}>
                   <span style={{fontSize:13,color:O,fontWeight:700}}>⏱ {t.votPrazo} {restante}</span>
                 </div>
               )}
@@ -1220,7 +1268,7 @@ function AppInner() {
                       {p.entregue&&<span style={{fontSize:10,background:"#2A5020",color:"#A0ECA0",borderRadius:10,padding:"2px 7px",fontWeight:700}}>{t.badEnt}</span>}
                       {p.pago&&<span style={{fontSize:10,background:"#1A3A5A",color:"#A0C8EC",borderRadius:10,padding:"2px 7px",fontWeight:700}}>{t.badPago}</span>}
                       {p.entregue&&!p.pago&&<span style={{fontSize:10,background:"#5A2A10",color:"#FFC080",borderRadius:10,padding:"2px 7px",fontWeight:700}}>{t.badPend}</span>}
-                      {p.comentario&&<span style={{fontSize:10,background:"#1A1A5A",color:"#C0C0FF",borderRadius:10,padding:"2px 7px",fontWeight:700}}>{t.badComent}</span>}
+                      {p.comentario&&<span style={{fontSize:10,background:"#E8EAFB",color:"#3A3AA0",borderRadius:10,padding:"2px 7px",fontWeight:700}}>{t.badComent}</span>}
                     </div>
                   </div>
                   {p.alergia&&!p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}><button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,ciente:true}:x))} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#A03030",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.ciente}</button></div>}
@@ -1258,7 +1306,7 @@ function AppInner() {
                       </>}
                     </div>
                   )}
-                  {p.comentario&&<div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",background:"#0A0A1A"}}><div style={{fontSize:10,color:MU,marginBottom:2}}>{t.fbSeu}</div><div style={{fontSize:12,color:TI,fontStyle:"italic"}}>"{p.comentario}"</div></div>}
+                  {p.comentario&&<div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",background:CA}}><div style={{fontSize:10,color:MU,marginBottom:2}}>{t.fbSeu}</div><div style={{fontSize:12,color:TI,fontStyle:"italic"}}>"{p.comentario}"</div></div>}
                   {verHistorico&&(
                     <div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px"}}>
                       <button onClick={()=>apagarPedido(p.id)} style={{width:"100%",padding:"7px 0",borderRadius:9,border:"1px solid #E0505066",background:"transparent",color:"#E05050",fontWeight:600,fontSize:12,cursor:"pointer"}}>🗑 {t.apagarPed}</button>
@@ -1275,7 +1323,7 @@ function AppInner() {
             <div style={s.hero}>
               <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:20,color:O,marginBottom:6}}>{t.espTit}</div>
               <div style={{fontSize:13,color:MU,lineHeight:1.6,marginBottom:10}}>{t.espDesc}</div>
-              <div style={{fontSize:12,color:MU,background:"#1A1408",border:`1px solid ${BL}`,borderRadius:8,padding:"7px 10px"}}>{t.espAviso}</div>
+              <div style={{fontSize:12,color:MU,background:CA,border:`1px solid ${BL}`,borderRadius:8,padding:"7px 10px"}}>{t.espAviso}</div>
             </div>
             <div style={{...s.card,marginBottom:14}}>
               <div style={{fontWeight:700,fontSize:13,color:O,marginBottom:10}}>{t.espFazer}</div>
@@ -1307,8 +1355,8 @@ function AppInner() {
                     <div style={{fontSize:13,color:TI,lineHeight:1.5,marginBottom:e.obs?4:8}}>{e.desc}</div>
                     {e.obs&&<div style={{fontSize:11.5,color:MU,marginBottom:8}}>📝 {e.obs}</div>}
                     {e.status==="aguardando"&&<div style={{fontSize:12,color:O}}>⏳ {t.espAg}</div>}
-                    {e.status==="aceito"&&<div style={{background:"#0A1A0A",borderRadius:8,padding:"8px 10px",border:"1px solid #3A8A30"}}><div style={{fontSize:12,color:"#3A8A30",fontWeight:700,marginBottom:2}}>{t.espAcei}</div>{e.precoResp&&<div style={{fontSize:14,color:O,fontWeight:700}}>{fmt(e.precoResp)}</div>}{e.resposta&&<div style={{fontSize:12,color:MU,marginTop:2}}>{e.resposta}</div>}</div>}
-                    {e.status==="recusado"&&<div style={{background:"#1A0A0A",borderRadius:8,padding:"8px 10px",border:"1px solid #E05050"}}><div style={{fontSize:12,color:"#E05050",fontWeight:700,marginBottom:2}}>{t.espRec}</div>{e.resposta&&<div style={{fontSize:12,color:MU}}>{e.resposta}</div>}</div>}
+                    {e.status==="aceito"&&<div style={{background:"#EAF6E8",borderRadius:8,padding:"8px 10px",border:"1px solid #3A8A30"}}><div style={{fontSize:12,color:"#3A8A30",fontWeight:700,marginBottom:2}}>{t.espAcei}</div>{e.precoResp&&<div style={{fontSize:14,color:O,fontWeight:700}}>{fmt(e.precoResp)}</div>}{e.resposta&&<div style={{fontSize:12,color:MU,marginTop:2}}>{e.resposta}</div>}</div>}
+                    {e.status==="recusado"&&<div style={{background:"#FBE8E8",borderRadius:8,padding:"8px 10px",border:"1px solid #E05050"}}><div style={{fontSize:12,color:"#E05050",fontWeight:700,marginBottom:2}}>{t.espRec}</div>{e.resposta&&<div style={{fontSize:12,color:MU}}>{e.resposta}</div>}</div>}
                   </div>
                 ))}
               </>
@@ -1326,7 +1374,7 @@ function AppInner() {
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontWeight:600,fontSize:13,color:TI}}>#{p.num}</span><span style={{fontSize:11,color:MU}}>{p.hora}</span></div>
                   <div style={{fontSize:11.5,color:MU,marginBottom:8}}>{p.itens}</div>
                   {p.comentario
-                    ?<div style={{background:"#0A0A1A",borderRadius:8,padding:"8px 10px",border:`1px solid ${BL}`}}>
+                    ?<div style={{background:CA,borderRadius:8,padding:"8px 10px",border:`1px solid ${BL}`}}>
                         <div style={{fontSize:10,color:MU,marginBottom:3}}>{t.fbSeu}</div>
                         <div style={{fontSize:13,color:TI,fontStyle:"italic",lineHeight:1.5}}>"{p.comentario}"</div>
                         <button onClick={()=>{setFbAberto(p.id);setFbTxt(p.comentario);}} style={{fontSize:11,color:O,background:"transparent",border:"none",cursor:"pointer",marginTop:5,padding:0}}>{t.fbEdit}</button>
@@ -1444,7 +1492,7 @@ function AppInner() {
                 ))}
               </div>
               {menuDia.aviso&&menuDia.aviso.trim()&&(
-                <div style={{marginTop:10,background:"#1A1408",borderRadius:8,padding:"7px 10px",border:`1px solid ${O}`}}>
+                <div style={{marginTop:10,background:CA,borderRadius:8,padding:"7px 10px",border:`1px solid ${O}`}}>
                   <div style={{fontSize:10,color:O,fontWeight:700,marginBottom:2}}>{t.avisoAtivo}</div>
                   <div style={{fontSize:12,color:TI}}>{menuDia.aviso}</div>
                 </div>
@@ -1472,7 +1520,7 @@ function AppInner() {
                                 </div>
                                 <span style={{fontSize:11,color:MU}}>{p.v} voto{p.v!==1?"s":""}</span>
                               </div>
-                              <div style={{height:5,background:"#1A1408",borderRadius:5,overflow:"hidden"}}>
+                              <div style={{height:5,background:CA,borderRadius:5,overflow:"hidden"}}>
                                 <div style={{height:"100%",width:`${pct}%`,background:i===0?O:BL,borderRadius:5}}/>
                               </div>
                             </div>
@@ -1593,7 +1641,7 @@ function AppInner() {
               )}
               {pedidos.length===0&&<div style={s.vazio}><div style={{fontSize:36}}>💰</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{t.cNenhum}</div></div>}
               {pedidos.length>0&&(
-                <div style={{background:"#0A1A0A",border:"1px solid #3A8A30",borderRadius:14,padding:"12px 14px"}}>
+                <div style={{background:"#EAF6E8",border:"1px solid #3A8A30",borderRadius:14,padding:"12px 14px"}}>
                   <div style={{fontSize:13,color:"#A0ECA0",lineHeight:1.8}}>
                     📦 {pedidos.length} pedido{pedidos.length>1?"s":""}<br/>
                     ✅ {pedidos.filter(p=>p.pago).length} pago{pedidos.filter(p=>p.pago).length>1?"s":""}<br/>
@@ -1624,7 +1672,7 @@ function AppInner() {
 
       {pinAberto&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.92)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}} onClick={()=>{setPinAberto(false);setPinInput("");setPinErro("");}}>
-          <div style={{background:"#1A1408",borderRadius:24,padding:"28px 24px",width:300,border:`1.5px solid ${O}`}} onClick={e=>e.stopPropagation()}>
+          <div style={{background:CA,borderRadius:24,padding:"28px 24px",width:300,border:`1.5px solid ${O}`}} onClick={e=>e.stopPropagation()}>
             <div style={{textAlign:"center",marginBottom:16}}>
               <div style={{fontSize:36,marginBottom:6}}>🔐</div>
               <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:20,color:OE}}>Área da Cozinha</div>
@@ -1641,7 +1689,7 @@ function AppInner() {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
               {["1","2","3","4","5","6","7","8","9","","0","⌫"].map(d=>(
                 <button key={d} onClick={()=>{ if(d==="⌫") setPinInput(p=>p.slice(0,-1)); else if(d) digitarPin(d); }}
-                  style={{padding:"16px 0",borderRadius:12,border:"none",background:d==="⌫"?"#3A1010":d?"#2A1F00":"transparent",color:d==="⌫"?"#E05050":d?O:"transparent",fontSize:d==="⌫"?20:22,fontWeight:700,cursor:d?"pointer":"default"}}>
+                  style={{padding:"16px 0",borderRadius:12,border:"none",background:d==="⌫"?"#FBE8E8":d?"#FBF6EA":"transparent",color:d==="⌫"?"#E05050":d?O:"transparent",fontSize:d==="⌫"?20:22,fontWeight:700,cursor:d?"pointer":"default"}}>
                   {d}
                 </button>
               ))}
@@ -1689,7 +1737,7 @@ function AppInner() {
             <label style={s.lbl}>{t.tipoLabel}</label>
             <div style={{display:"flex",gap:8,marginBottom:8}}>
               {["entrega","retirada"].map(tp=>(
-                <button key={tp} onClick={()=>setForm({...form,tipo:tp})} style={{flex:1,padding:"8px 0",borderRadius:9,border:form.tipo===tp?`2px solid ${OE}`:`1px solid #C9A84C66`,background:form.tipo===tp?"#F5EDD5":"#FBF6EA",color:OE,fontWeight:form.tipo===tp?700:400,fontSize:13,cursor:"pointer"}}>
+                <button key={tp} onClick={()=>setForm({...form,tipo:tp})} style={{flex:1,padding:"8px 0",borderRadius:9,border:form.tipo===tp?`2px solid ${OE}`:`1px solid #8B5A2B66`,background:form.tipo===tp?"#F5EDD5":"#FBF6EA",color:OE,fontWeight:form.tipo===tp?700:400,fontSize:13,cursor:"pointer"}}>
                   {tp==="entrega"?t.tEnt:t.tRet}
                 </button>
               ))}
@@ -1752,7 +1800,7 @@ function AppInner() {
             <label style={s.lbl}>{t.pagLabel}</label>
             <div style={{display:"flex",gap:8,marginBottom:8}}>
               {[{id:"etransfer",l:t.pEt,icon:"📧"},{id:"dinheiro",l:t.pDin,icon:"💵"},{id:"cartao",l:t.pCart,icon:"💳"}].map(pg=>(
-                <button key={pg.id} onClick={()=>setForm({...form,pag:pg.id})} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"9px 4px",borderRadius:10,border:form.pag===pg.id?`2px solid ${OE}`:`1px solid #C9A84C66`,background:form.pag===pg.id?"#F5EDD5":"#FBF6EA",cursor:"pointer",fontSize:12,color:OE,fontWeight:form.pag===pg.id?700:400}}>
+                <button key={pg.id} onClick={()=>setForm({...form,pag:pg.id})} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"9px 4px",borderRadius:10,border:form.pag===pg.id?`2px solid ${OE}`:`1px solid #8B5A2B66`,background:form.pag===pg.id?"#F5EDD5":"#FBF6EA",cursor:"pointer",fontSize:12,color:OE,fontWeight:form.pag===pg.id?700:400}}>
                   <span style={{fontSize:18}}>{pg.icon}</span><span>{pg.l}</span>
                 </button>
               ))}
@@ -1765,7 +1813,7 @@ function AppInner() {
             <label style={s.lbl}>{t.tipoLabel}</label>
             <div style={{display:"flex",gap:8,marginBottom:8}}>
               {["entrega","retirada"].map(tp=>(
-                <button key={tp} onClick={()=>setForm({...form,tipo:tp})} style={{flex:1,padding:"8px 0",borderRadius:9,border:form.tipo===tp?`2px solid ${OE}`:`1px solid #C9A84C66`,background:form.tipo===tp?"#F5EDD5":"#FBF6EA",color:OE,fontWeight:form.tipo===tp?700:400,fontSize:13,cursor:"pointer"}}>
+                <button key={tp} onClick={()=>setForm({...form,tipo:tp})} style={{flex:1,padding:"8px 0",borderRadius:9,border:form.tipo===tp?`2px solid ${OE}`:`1px solid #8B5A2B66`,background:form.tipo===tp?"#F5EDD5":"#FBF6EA",color:OE,fontWeight:form.tipo===tp?700:400,fontSize:13,cursor:"pointer"}}>
                   {tp==="entrega"?t.tEnt:t.tRet}
                 </button>
               ))}
@@ -1794,18 +1842,18 @@ function AppInner() {
                 </div>
               </div>
             )}
-            <div style={{marginTop:12,borderTop:"1px solid #C9A84C44",paddingTop:10}}>
+            <div style={{marginTop:12,borderTop:"1px solid #8B5A2B44",paddingTop:10}}>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:6}}><span style={{color:OE}}>{t.subtotal}</span><span style={{color:"#2A1F00"}}>{fmt(sub)}</span></div>
               {frete>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:6}}><span style={{color:OE}}>{t.freteLabel}</span><span style={{color:"#2A1F00"}}>{fmt(frete)}</span></div>}
               <div style={{display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:700,marginTop:6}}><span style={{color:"#2A1F00"}}>{t.totalLabel}</span><span style={{color:OE}}>{fmt(total)}</span></div>
               <div style={{marginTop:8,fontSize:12,color:"#3B6030",background:"#EEF6E8",padding:"7px 10px",borderRadius:8,textAlign:"center"}}>⏱ {form.tipo==="entrega"?t.tEnt:t.tRet}: <strong>{previsaoEntrega(lang)}</strong></div>
             </div>
-            <div style={{marginTop:12,background:"#1A1408",border:`2px solid ${form.alergia===null?"#E05050":form.alergia?O:"#3A8A30"}`,borderRadius:12,padding:"12px 14px"}}>
+            <div style={{marginTop:12,background:CA,border:`2px solid ${form.alergia===null?"#E05050":form.alergia?O:"#3A8A30"}`,borderRadius:12,padding:"12px 14px"}}>
               <div style={{fontWeight:700,fontSize:13,color:form.alergia===null?"#E05050":form.alergia?O:"#3A8A30",marginBottom:6}}>{t.alTit}</div>
               <div style={{fontSize:11,color:MU,marginBottom:8}}>{t.alSub}</div>
               <div style={{display:"flex",gap:8,marginBottom:form.alergia?10:0}}>
-                <button onClick={()=>setForm({...form,alergia:false,alergiaDesc:""})} style={{flex:1,padding:"9px 0",borderRadius:10,border:`2px solid ${form.alergia===false?"#3A8A30":"#C9A84C44"}`,background:form.alergia===false?"#EEF6E8":"#FBF6EA",color:form.alergia===false?"#1A5020":OE,fontWeight:form.alergia===false?700:400,fontSize:13,cursor:"pointer"}}>{t.alNao}</button>
-                <button onClick={()=>setForm({...form,alergia:true})} style={{flex:1,padding:"9px 0",borderRadius:10,border:`2px solid ${form.alergia===true?"#E05050":"#C9A84C44"}`,background:form.alergia===true?"#FBE8E8":"#FBF6EA",color:form.alergia===true?"#A03030":OE,fontWeight:form.alergia===true?700:400,fontSize:13,cursor:"pointer"}}>{t.alSim}</button>
+                <button onClick={()=>setForm({...form,alergia:false,alergiaDesc:""})} style={{flex:1,padding:"9px 0",borderRadius:10,border:`2px solid ${form.alergia===false?"#3A8A30":"#8B5A2B44"}`,background:form.alergia===false?"#EEF6E8":"#FBF6EA",color:form.alergia===false?"#1A5020":OE,fontWeight:form.alergia===false?700:400,fontSize:13,cursor:"pointer"}}>{t.alNao}</button>
+                <button onClick={()=>setForm({...form,alergia:true})} style={{flex:1,padding:"9px 0",borderRadius:10,border:`2px solid ${form.alergia===true?"#E05050":"#8B5A2B44"}`,background:form.alergia===true?"#FBE8E8":"#FBF6EA",color:form.alergia===true?"#A03030":OE,fontWeight:form.alergia===true?700:400,fontSize:13,cursor:"pointer"}}>{t.alSim}</button>
               </div>
               {form.alergia===true&&(
                 <>
@@ -1865,7 +1913,7 @@ function AppInner() {
             </div>
             <div style={{fontSize:12,color:"#6B5040",marginBottom:10}}>{t.editDef}</div>
             {menuTemp.pratos.map((prato,idx)=>(
-              <div key={idx} style={{marginBottom:12,background:"#FBF6EA",borderRadius:12,border:"1px solid #C9A84C44",padding:"12px 14px"}}>
+              <div key={idx} style={{marginBottom:12,background:"#FBF6EA",borderRadius:12,border:"1px solid #8B5A2B44",padding:"12px 14px"}}>
                 <div style={{fontSize:12,color:OE,fontWeight:700,marginBottom:8}}>{t.editPrato} {idx+1}</div>
                 <div style={{maxHeight:150,overflowY:"auto",marginBottom:8}}>
                   {[{label:t.cComCarne,lista:CARDAPIO.carne},{label:t.cSemCarne,lista:CARDAPIO.veg}].map(g=>(
@@ -1873,7 +1921,7 @@ function AppInner() {
                       <div style={{fontSize:10,color:OE,fontWeight:700,padding:"4px 0 2px"}}>{g.label}</div>
                       {g.lista.map(c=>(
                         <button key={c.id} onClick={()=>setMenuTemp(m=>({...m,pratos:m.pratos.map((p,i)=>i===idx?{...p,id:c.id,nome:c.nome,icon:c.icon}:p)}))}
-                          style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"6px 8px",border:prato.id===c.id?`2px solid ${OE}`:`1px solid #C9A84C44`,borderRadius:8,background:prato.id===c.id?"#F5EDD5":"transparent",cursor:"pointer",marginBottom:3,color:prato.id===c.id?OE:"#6B5040"}}>
+                          style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"6px 8px",border:prato.id===c.id?`2px solid ${OE}`:`1px solid #8B5A2B44`,borderRadius:8,background:prato.id===c.id?"#F5EDD5":"transparent",cursor:"pointer",marginBottom:3,color:prato.id===c.id?OE:"#6B5040"}}>
                           <IcoCarne tipo={c.icon} size={22}/>
                           <span style={{flex:1,textAlign:"left",fontSize:12}}>{c.nome}</span>
                           {prato.id===c.id&&<span style={{color:OE,fontWeight:700,fontSize:13}}>✓</span>}
@@ -1899,7 +1947,7 @@ function AppInner() {
               setDoc(doc(db,"estado","menu"),novoMenu).catch(()=>{});
               setCarrinho({});setExtra({});setEditando(false);
             }}>{t.editSalvar}</button>
-            <div style={{marginBottom:16,background:"#FBF6EA",borderRadius:12,border:"1px solid #C9A84C44",padding:"12px 14px"}}>
+            <div style={{marginBottom:16,background:"#FBF6EA",borderRadius:12,border:"1px solid #8B5A2B44",padding:"12px 14px"}}>
               <div style={{fontSize:12,color:OE,fontWeight:700,marginBottom:8}}>{t.editPrecoExtraTit}</div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <label style={{...s.lbl,margin:0}}>{t.editPrecoExtra}</label>
@@ -1909,11 +1957,11 @@ function AppInner() {
                 <span style={{fontSize:11,color:MU}}>/ {t.extraPor}</span>
               </div>
             </div>
-            <div style={{borderTop:"1px solid #C9A84C44",paddingTop:14}}>
+            <div style={{borderTop:"1px solid #8B5A2B44",paddingTop:14}}>
               <div style={{fontWeight:700,fontSize:13,color:OE,marginBottom:4}}>{t.avisoTit}</div>
               <div style={{fontSize:12,color:"#6B5040",marginBottom:8}}>{t.avisoSub}</div>
               <textarea rows={3} value={menuTemp.aviso||""} onChange={e=>setMenuTemp(m=>({...m,aviso:e.target.value}))} placeholder={t.avisoPh}
-                style={{width:"100%",padding:"9px 11px",borderRadius:9,border:"1px solid #C9A84C66",fontSize:13,fontFamily:"inherit",color:"#2A1F00",background:"#FBF6EA",resize:"vertical",boxSizing:"border-box",lineHeight:1.5}}/>
+                style={{width:"100%",padding:"9px 11px",borderRadius:9,border:"1px solid #8B5A2B66",fontSize:13,fontFamily:"inherit",color:"#2A1F00",background:"#FBF6EA",resize:"vertical",boxSizing:"border-box",lineHeight:1.5}}/>
               {menuTemp.aviso&&menuTemp.aviso.trim()&&<button style={{fontSize:11.5,color:"#A05050",background:"transparent",border:"none",cursor:"pointer",marginTop:4,padding:0}} onClick={()=>setMenuTemp(m=>({...m,aviso:""}))}>{t.avisoLimpar}</button>}
             </div>
           </div>

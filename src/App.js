@@ -77,7 +77,7 @@ const PRATOS_BASE = [
   {id:"p2",nome:"Bife acebolado", desc:"Arroz, feijão, salada e bife acebolado.",          preco:35,icon:"carne"},
 ];
 
-const CARDAPIO = {
+const CARDAPIO_PADRAO = {
   carne:[
     {id:"bife_aceb",       nome:"Bife acebolado",                         icon:"carne"},
     {id:"frango_temp",     nome:"Frango temperado / carne da panela",     icon:"frango"},
@@ -120,8 +120,6 @@ const CARDAPIO = {
   ],
 };
 
-const TODOS_PRATOS = [...CARDAPIO.carne, ...CARDAPIO.veg];
-function dishById(id){ return TODOS_PRATOS.find(d=>d.id===id); }
 // Sugestões padrão (2 opções por dia) — a Gi pode trocar pela tela da cozinha
 const SUGESTOES_PADRAO = {
   segunda: ["bife_aceb","berinjela"],
@@ -210,6 +208,8 @@ const T = {
     cNaoPag:"⏳ Entregues mas não pagos",cNaoEnt:"🛵 Pedidos ainda não entregues",
     cMarcarPago:"Marcar pago",cNenhum:"Nenhum pedido hoje",
     cozTit:"⚙️ Menu do dia",cozPratos:"Pratos de hoje",cozSub:"Toque editar para trocar",
+    cardCompTit:"📖 Cardápio completo",cardCompSub:"Todos os pratos que aparecem na votação e no cardápio completo",
+    cardCompAdd:"Adicionar prato",
     cozEdit:"✏️ Editar",prazoTit:"Prazo de escolha",prazoEnc:"Encerrado — prato definido pela votação",
     calc:"Calculando...",votosLabel:"Votos",rankTit:"🗳️ Votos por prato",
     rankVazio:"Nenhum voto ainda.\nOs clientes votam no cardápio.",pratoFixo:"PRATO FIXO",
@@ -322,6 +322,8 @@ const T = {
     cNaoPag:"⏳ Delivered but not paid",cNaoEnt:"🛵 Not yet delivered",
     cMarcarPago:"Mark as paid",cNenhum:"No orders today",
     cozTit:"⚙️ Today's menu",cozPratos:"Today's dishes",cozSub:"Tap edit to change",
+    cardCompTit:"📖 Full menu",cardCompSub:"All dishes shown in voting and the full menu list",
+    cardCompAdd:"Add dish",
     cozEdit:"✏️ Edit",prazoTit:"Voting deadline",prazoEnc:"Closed — dish set by vote count",
     calc:"Calculating...",votosLabel:"Votes",rankTit:"🗳️ Votes per dish",
     rankVazio:"No votes yet.\nClients vote in the menu.",pratoFixo:"TODAY'S DISH",
@@ -688,6 +690,14 @@ function AppInner() {
   function getSenha() { try { return localStorage.getItem(SENHA_KEY)||"Gitorres11121984"; } catch(_){ return "Gitorres11121984"; } }
   function setSenha(s) { try { localStorage.setItem(SENHA_KEY,s); } catch(_){} }
   const [menuDia,setMenuDia] = useState({pratos:PRATOS_BASE,aviso:"",precoExtra:PRECO_100G_PADRAO});
+  const [cardapio,setCardapio] = useState(()=>{
+    try{ const s=JSON.parse(localStorage.getItem("cardapioCompleto")||"null"); if(s&&s.carne&&s.veg) return s; }catch(_){}
+    return CARDAPIO_PADRAO;
+  });
+  const todosPratos = [...cardapio.carne, ...cardapio.veg];
+  function dishById(id){ return todosPratos.find(d=>d.id===id); }
+  const [editandoCardapio,setEditandoCardapio] = useState(false);
+  const [cardapioTemp,setCardapioTemp] = useState(null);
   const [sobEncForm,setSobEncForm] = useState({nome:"",tel:"",desc:"",obs:""});
   const [sobEncErro,setSobEncErro] = useState("");
   const [sobEncModal,setSobEncModal] = useState(false);
@@ -753,6 +763,9 @@ function AppInner() {
     const unsubMenu = onSnapshot(doc(db,"estado","menu"), snap=>{
       if(snap.exists()){ const d=snap.data(); setMenuDia({pratos:d.pratos||PRATOS_BASE,aviso:d.aviso||"",precoExtra:d.precoExtra??PRECO_100G_PADRAO}); }
     }, ()=>{});
+    const unsubCardapio = onSnapshot(doc(db,"estado","cardapioCompleto"), snap=>{
+      if(snap.exists()){ const d=snap.data(); if(d.carne&&d.veg){ setCardapio(d); try{ localStorage.setItem("cardapioCompleto",JSON.stringify(d)); }catch(_){} } }
+    }, ()=>{});
     const unsubVotos = onSnapshot(doc(db,"estado","votos"), snap=>{
       if(snap.exists()){
         const {ciclo,...dias}=snap.data();
@@ -761,7 +774,7 @@ function AppInner() {
       }
       setVotosCarregados(true);
     }, ()=>{ setVotosCarregados(true); });
-    return ()=>{ unsubMenu(); unsubVotos(); };
+    return ()=>{ unsubMenu(); unsubCardapio(); unsubVotos(); };
   },[]);
   useEffect(()=>{
     // Reinicia o "já votei" deste celular quando começa um novo ciclo de votação
@@ -866,6 +879,26 @@ function AppInner() {
 
   function apagarPedido(id){
     if(window.confirm(t.confirmApagar)) setPedidos(p=>p.filter(x=>x.id!==id));
+  }
+  function abrirEdicaoCardapio(){
+    setCardapioTemp({carne:cardapio.carne.map(d=>({...d})),veg:cardapio.veg.map(d=>({...d}))});
+    setEditandoCardapio(true);
+  }
+  function addPratoCardapio(cat){
+    setCardapioTemp(t=>({...t,[cat]:[...t[cat],{id:"novo_"+Date.now(),nome:"",icon:cat==="veg"?"veg":"carne"}]}));
+  }
+  function removerPratoCardapio(cat,idx){
+    setCardapioTemp(t=>({...t,[cat]:t[cat].filter((_,i)=>i!==idx)}));
+  }
+  function salvarCardapioCompleto(){
+    const limpo={
+      carne:cardapioTemp.carne.filter(d=>d.nome.trim()).map(d=>({...d,nome:d.nome.trim()})),
+      veg:cardapioTemp.veg.filter(d=>d.nome.trim()).map(d=>({...d,nome:d.nome.trim()})),
+    };
+    setCardapio(limpo);
+    try{ localStorage.setItem("cardapioCompleto",JSON.stringify(limpo)); }catch(_){}
+    setDoc(doc(db,"estado","cardapioCompleto"),limpo).catch(()=>{});
+    setEditandoCardapio(false);
   }
   function enviar(){
     if(!form.nome.trim()||!form.tel.trim()){setErro(t.eNome);return;}
@@ -1116,7 +1149,7 @@ function AppInner() {
                         <div style={{padding:"0 12px 12px"}}>
                           <div style={{fontSize:11,color:O,fontWeight:600,marginBottom:6}}>{sel.length}/2 {t.sugSelecionados}</div>
                           <div style={{maxHeight:220,overflowY:"auto"}}>
-                            {[{label:t.cComCarne,lista:CARDAPIO.carne},{label:t.cSemCarne,lista:CARDAPIO.veg}].map(g=>(
+                            {[{label:t.cComCarne,lista:cardapio.carne},{label:t.cSemCarne,lista:cardapio.veg}].map(g=>(
                               <div key={g.label}>
                                 <div style={{fontSize:9.5,fontWeight:700,color:MU,padding:"5px 0 3px",letterSpacing:"0.06em",textTransform:"uppercase"}}>{g.label}</div>
                                 {g.lista.map(c=>{
@@ -1503,6 +1536,46 @@ function AppInner() {
                 </div>
               )}
             </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div><div style={s.secTit}>{t.cardCompTit}</div><div style={{fontSize:11,color:MU,marginTop:-6,marginBottom:8}}>{t.cardCompSub}</div></div>
+              {!editandoCardapio&&<button style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${O}`,background:"transparent",fontSize:12,cursor:"pointer",color:O,fontWeight:600}} onClick={abrirEdicaoCardapio}>{t.cozEdit}</button>}
+            </div>
+            {!editandoCardapio
+              ?<div style={s.card}>
+                  {[{key:"carne",label:t.cComCarne},{key:"veg",label:t.cSemCarne}].map(g=>(
+                    <div key={g.key} style={{marginBottom:8}}>
+                      <div style={{fontSize:10,fontWeight:700,color:O,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:4}}>{g.label} ({cardapio[g.key].length})</div>
+                      <div style={{fontSize:12,color:TI,lineHeight:1.6}}>{cardapio[g.key].map(d=>d.nome).join(" · ")}</div>
+                    </div>
+                  ))}
+                </div>
+              :<div style={s.card}>
+                  {[{key:"carne",label:t.cComCarne},{key:"veg",label:t.cSemCarne}].map(g=>(
+                    <div key={g.key} style={{marginBottom:14}}>
+                      <div style={{fontSize:10,fontWeight:700,color:O,letterSpacing:"0.06em",textTransform:"uppercase",marginBottom:6}}>{g.label}</div>
+                      {cardapioTemp[g.key].map((d,idx)=>(
+                        <div key={d.id} style={{display:"flex",gap:6,marginBottom:5,alignItems:"center"}}>
+                          <input style={{...s.inp,flex:1}} value={d.nome} onChange={e=>setCardapioTemp(t=>({...t,[g.key]:t[g.key].map((x,i)=>i===idx?{...x,nome:e.target.value}:x)}))}/>
+                          <select value={d.icon} onChange={e=>setCardapioTemp(t=>({...t,[g.key]:t[g.key].map((x,i)=>i===idx?{...x,icon:e.target.value}:x)}))}
+                            style={{...s.inp,width:92,padding:"9px 4px"}}>
+                            <option value="carne">🍖 Carne</option>
+                            <option value="frango">🍗 Frango</option>
+                            <option value="costela">🍖 Costela</option>
+                            <option value="linguica">🌭 Linguiça</option>
+                            <option value="veg">🥗 S/carne</option>
+                          </select>
+                          <button onClick={()=>removerPratoCardapio(g.key,idx)} style={{border:"none",background:"transparent",color:"#E05050",fontSize:16,cursor:"pointer",padding:"2px 6px"}}>✕</button>
+                        </div>
+                      ))}
+                      <button onClick={()=>addPratoCardapio(g.key)} style={{fontSize:12,color:O,background:"transparent",border:`1px dashed ${O}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",width:"100%"}}>+ {t.cardCompAdd}</button>
+                    </div>
+                  ))}
+                  <div style={{display:"flex",gap:8}}>
+                    <button style={{...s.btnPrinc,background:"transparent",border:`1px solid ${BL}`,color:MU}} onClick={()=>setEditandoCardapio(false)}>{t.fechar}</button>
+                    <button style={{...s.btnPrinc,background:OE}} onClick={salvarCardapioCompleto}>{t.editSalvar}</button>
+                  </div>
+                </div>
+            }
             <div style={s.secTit}>{t.rankTit}</div>
             <div style={s.card}>
               {DIAS_SUGESTAO_KEYS.map(dia=>{
@@ -1884,7 +1957,7 @@ function AppInner() {
             <div style={{fontWeight:700,fontSize:13,color:OE,marginBottom:6}}>{t.cBase}</div>
             <div style={{fontSize:13,color:"#6B5040",marginBottom:12,lineHeight:1.8}}>🍚 {t.arroz} · 🫘 {t.feijao} · 🥗 {t.salada}</div>
             <div style={{maxHeight:320,overflowY:"auto"}}>
-              {[{label:t.cComCarne,lista:CARDAPIO.carne},{label:t.cSemCarne,lista:CARDAPIO.veg}].map(g=>(
+              {[{label:t.cComCarne,lista:cardapio.carne},{label:t.cSemCarne,lista:cardapio.veg}].map(g=>(
                 <div key={g.label}>
                   <div style={{fontSize:11,fontWeight:700,color:OE,padding:"8px 0 4px"}}>{g.label}</div>
                   {g.lista.map(c=>(
@@ -1921,7 +1994,7 @@ function AppInner() {
               <div key={idx} style={{marginBottom:12,background:"#FBF6EA",borderRadius:12,border:"1px solid #8B5A2B44",padding:"12px 14px"}}>
                 <div style={{fontSize:12,color:OE,fontWeight:700,marginBottom:8}}>{t.editPrato} {idx+1}</div>
                 <div style={{maxHeight:150,overflowY:"auto",marginBottom:8}}>
-                  {[{label:t.cComCarne,lista:CARDAPIO.carne},{label:t.cSemCarne,lista:CARDAPIO.veg}].map(g=>(
+                  {[{label:t.cComCarne,lista:cardapio.carne},{label:t.cSemCarne,lista:cardapio.veg}].map(g=>(
                     <div key={g.label}>
                       <div style={{fontSize:10,color:OE,fontWeight:700,padding:"4px 0 2px"}}>{g.label}</div>
                       {g.lista.map(c=>(

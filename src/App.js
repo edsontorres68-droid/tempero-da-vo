@@ -177,7 +177,9 @@ const T = {
     alDescLabel:"Descreva sua alergia (obrigatório):",
     alPh:"Ex: alérgico a amendoim, intolerante a lactose...",
     alAviso:"ALERGIA — ATENÇÃO ANTES DE PREPARAR",
-    pedRec:"Pedidos recebidos",nenhumPed:"Nenhum pedido ainda",
+    pedRec:"Pedidos recebidos",nenhumPed:"Nenhum pedido ativo",
+    pedAtivos:"Ativos",pedHistorico:"Histórico",nenhumHist:"Nenhum pedido no histórico ainda",
+    apagarPed:"Apagar do histórico",confirmApagar:"Apagar este pedido do histórico? Essa ação não pode ser desfeita.",
     prevLabel:"⏱ Previsão:",
     badEnt:"✅ Entregue",badPago:"💳 Pago",badPend:"⏳ Pagamento pendente",badComent:"💬 Comentário",
     ciente:"🚨 Confirmar: ciente da alergia — pode preparar",
@@ -284,7 +286,9 @@ const T = {
     alDescLabel:"Describe your allergy (required):",
     alPh:"Ex: peanut allergy, lactose intolerant, gluten allergy...",
     alAviso:"ALLERGY — READ BEFORE PREPARING",
-    pedRec:"Orders received",nenhumPed:"No orders yet",
+    pedRec:"Orders received",nenhumPed:"No active orders",
+    pedAtivos:"Active",pedHistorico:"History",nenhumHist:"No orders in history yet",
+    apagarPed:"Delete from history",confirmApagar:"Delete this order from history? This can't be undone.",
     prevLabel:"⏱ ETA:",
     badEnt:"✅ Delivered",badPago:"💳 Paid",badPend:"⏳ Payment pending",badComent:"💬 Review",
     ciente:"🚨 Confirm: allergy noted — can prepare",
@@ -649,6 +653,7 @@ function AppInner() {
   const [checkout,setCheckout]   = useState(false);
   const [alerta,setAlerta]       = useState(null);
   const [novos,setNovos]         = useState(0);
+  const [verHistorico,setVerHistorico] = useState(false);
   const [votosSug,setVotosSug]         = useState({segunda:{},quarta:{},sexta:{}});
   const [votoFeitoSug,setVotoFeitoSug] = useState(()=>{
     const limpo={segunda:null,quarta:null,sexta:null};
@@ -756,6 +761,9 @@ function AppInner() {
     setSobEncModal(false);
   }
 
+  function apagarPedido(id){
+    if(window.confirm(t.confirmApagar)) setPedidos(p=>p.filter(x=>x.id!==id));
+  }
   function enviar(){
     if(!form.nome.trim()||!form.tel.trim()){setErro(t.eNome);return;}
     if(form.tipo==="entrega"&&(!form.end.trim()||!form.endCity?.trim()||!form.endProv?.trim()||!form.endCep?.trim())){setErro(t.eEnd);return;}
@@ -1104,10 +1112,18 @@ function AppInner() {
 
         {aba==="pedidos"&&(
           <div>
-            <div style={s.secTit}>{t.pedRec}</div>
-            {pedidos.length===0
-              ?<div style={s.vazio}><div style={{fontSize:36}}>🧾</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{t.nenhumPed}</div></div>
-              :pedidos.map(p=>(
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
+              <button onClick={()=>setVerHistorico(false)} style={{flex:1,padding:"9px 0",borderRadius:10,border:!verHistorico?`2px solid ${O}`:`1px solid ${BL}`,background:!verHistorico?CA:"transparent",color:!verHistorico?O:MU,fontWeight:700,fontSize:12.5,cursor:"pointer"}}>
+                📋 {t.pedAtivos} {pedidos.filter(p=>!p.pago).length>0&&`(${pedidos.filter(p=>!p.pago).length})`}
+              </button>
+              <button onClick={()=>setVerHistorico(true)} style={{flex:1,padding:"9px 0",borderRadius:10,border:verHistorico?`2px solid ${O}`:`1px solid ${BL}`,background:verHistorico?CA:"transparent",color:verHistorico?O:MU,fontWeight:700,fontSize:12.5,cursor:"pointer"}}>
+                📜 {t.pedHistorico} {pedidos.filter(p=>p.pago).length>0&&`(${pedidos.filter(p=>p.pago).length})`}
+              </button>
+            </div>
+            <div style={s.secTit}>{verHistorico?t.pedHistorico:t.pedRec}</div>
+            {(verHistorico?pedidos.filter(p=>p.pago):pedidos.filter(p=>!p.pago)).length===0
+              ?<div style={s.vazio}><div style={{fontSize:36}}>{verHistorico?"📜":"🧾"}</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{verHistorico?t.nenhumHist:t.nenhumPed}</div></div>
+              :(verHistorico?pedidos.filter(p=>p.pago):pedidos.filter(p=>!p.pago)).map(p=>(
                 <div key={p.id} style={{...s.card,padding:0,marginBottom:10,overflow:"hidden"}}>
                   {p.alergia&&<div style={{background:"#A03030",padding:"7px 12px",display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:16}}>🚨</span><div><div style={{fontWeight:700,fontSize:12,color:"#fff"}}>{t.alAviso}</div><div style={{fontSize:11,color:"#FFD0D0"}}>{p.alergiaDesc}</div></div></div>}
                   <div style={{padding:"10px 12px"}}>
@@ -1184,6 +1200,11 @@ function AppInner() {
                     </div>
                   )}
                   {p.comentario&&<div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",background:"#0A0A1A"}}><div style={{fontSize:10,color:MU,marginBottom:2}}>{t.fbSeu}</div><div style={{fontSize:12,color:TI,fontStyle:"italic"}}>"{p.comentario}"</div></div>}
+                  {verHistorico&&(
+                    <div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px"}}>
+                      <button onClick={()=>apagarPedido(p.id)} style={{width:"100%",padding:"7px 0",borderRadius:9,border:"1px solid #E0505066",background:"transparent",color:"#E05050",fontWeight:600,fontSize:12,cursor:"pointer"}}>🗑 {t.apagarPed}</button>
+                    </div>
+                  )}
                 </div>
               ))
             }

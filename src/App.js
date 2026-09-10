@@ -144,6 +144,7 @@ const T = {
     extra:"🥩 Carne extra",extraPor:"por 100g",extraInfo:"a mais",
     obsPh:"Observações (sem cebola, pouco sal...)",obsSave:"Salvar",obsCancel:"Cancelar",
     votTit:"Dê sua sugestão para a próxima semana",votOff:"🔒 Sugestão encerrada",
+    votValidoPara:"Vale para a semana de",votAte:"Vote até",votAs18h:"às 18h",
     votSub:"Vote na opção que você mais gostaria de comer em cada dia",
     votPrazo:"Prazo:",votado:"✓ Votado",
     votObrig:"Obrigada pelo voto! A cozinha vai adorar saber 💛",
@@ -258,6 +259,7 @@ const T = {
     extra:"🥩 Extra meat",extraPor:"per 100g",extraInfo:"extra",
     obsPh:"Notes (no onion, less salt...)",obsSave:"Save",obsCancel:"Cancel",
     votTit:"Give your suggestion for next week",votOff:"🔒 Voting closed",
+    votValidoPara:"Applies to the week of",votAte:"Vote by",votAs18h:"at 6pm",
     votSub:"Vote for the option you'd like to eat each day",
     votPrazo:"Deadline:",votado:"✓ Voted",
     votObrig:"Thanks for voting! The kitchen will love to know 💛",
@@ -454,6 +456,15 @@ function proximaDataDia(diaKey){
 }
 function fmtDataCurta(data){
   return data.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
+}
+// Data que a sugestão votada agora realmente vale: sempre a semana CHEIA seguinte
+// ao ciclo de votação atual — nunca o dia da semana em curso (que pode já ter passado).
+const OFFSET_ALVO_VOTACAO = {segunda:9,quarta:11,sexta:13}; // dias após o sábado-âncora do ciclo
+function dataAlvoVotacao(diaKey){
+  const ciclo = cicloVotacaoAtual(); // "AAAA-MM-DD" do sábado-âncora
+  const base = new Date(ciclo+"T00:00:00");
+  base.setDate(base.getDate()+OFFSET_ALVO_VOTACAO[diaKey]);
+  return base;
 }
 
 function tempoRestante() {
@@ -1165,6 +1176,9 @@ function AppInner() {
 
             <div style={s.votCard}>
               <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:19,color:O,marginBottom:4}}>{expirou?t.votOff:t.votTit}</div>
+              <div style={{fontSize:11.5,color:O,fontWeight:700,marginBottom:8}}>
+                🗓️ {t.votValidoPara} {fmtDataCurta(dataAlvoVotacao("segunda"))}–{fmtDataCurta(dataAlvoVotacao("sexta"))} · {t.votAte} {fmtDataCurta(calcPrazo())} {t.votAs18h}
+              </div>
               {!expirou&&restante&&(
                 <div style={{display:"flex",alignItems:"center",gap:6,background:CA,border:`1px solid ${O}`,borderRadius:20,padding:"5px 12px",marginBottom:10,width:"fit-content"}}>
                   <span style={{fontSize:13,color:O,fontWeight:700}}>⏱ {t.votPrazo} {restante}</span>
@@ -1187,7 +1201,7 @@ function AppInner() {
                           });
                         }}
                         style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"transparent",border:"none",cursor:expirou?"default":"pointer"}}>
-                        <span style={{fontSize:11,fontWeight:700,color:O,letterSpacing:"0.06em",textTransform:"uppercase"}}>{t[`dia_${dia}`]}</span>
+                        <span style={{fontSize:11,fontWeight:700,color:O,letterSpacing:"0.06em",textTransform:"uppercase"}}>{t[`dia_${dia}`]} <span style={{fontWeight:400,textTransform:"none",color:MU,letterSpacing:0}}>({fmtDataCurta(dataAlvoVotacao(dia))})</span></span>
                         {votado
                           ?<span style={{fontSize:11,color:"#3A8A30",fontWeight:700}}>✓ {t.votado}{!expirou&&` · ${aberto?"▲":t.alterarVoto}`}</span>
                           :<span style={{fontSize:11,color:MU}}>{aberto?"▲":"▼"} {t.sugEscolher}</span>}

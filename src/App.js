@@ -1,7 +1,7 @@
 /* eslint-disable */
 import { useState, useMemo, useEffect, useRef, Component } from "react";
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, onSnapshot, increment } from "firebase/firestore";
+import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, increment, collection } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA94GGJjsJvw9kqKBzsM8E_ph274LiVk4Y",
@@ -790,6 +790,11 @@ function AppInner() {
     const unsubCardapio = onSnapshot(doc(db,"estado","cardapioCompleto"), snap=>{
       if(snap.exists()){ const d=snap.data(); if(d.carne&&d.veg){ setCardapio(d); try{ localStorage.setItem("cardapioCompleto",JSON.stringify(d)); }catch(_){} } }
     }, ()=>{});
+    const unsubPedidos = onSnapshot(collection(db,"pedidos"), snap=>{
+      const lista=snap.docs.map(d=>d.data());
+      lista.sort((a,b)=>(b.id||0)-(a.id||0));
+      setPedidos(lista);
+    }, ()=>{});
     const unsubVotos = onSnapshot(doc(db,"estado","votos"), snap=>{
       if(snap.exists()){
         const {ciclo,...dias}=snap.data();
@@ -798,7 +803,7 @@ function AppInner() {
       }
       setVotosCarregados(true);
     }, ()=>{ setVotosCarregados(true); });
-    return ()=>{ unsubMenu(); unsubCardapio(); unsubVotos(); };
+    return ()=>{ unsubMenu(); unsubCardapio(); unsubPedidos(); unsubVotos(); };
   },[]);
   useEffect(()=>{
     // Reinicia o "já votei" deste celular quando começa um novo ciclo de votação
@@ -906,8 +911,15 @@ function AppInner() {
     setDiaPedido(novoDia);
     setCarrinho({}); setExtra({}); setObs({});
   }
+  function atualizarPedido(id,campos){
+    setPedidos(pv=>pv.map(x=>x.id===id?{...x,...campos}:x));
+    setDoc(doc(db,"pedidos",String(id)),campos,{merge:true}).catch(()=>{});
+  }
   function apagarPedido(id){
-    if(window.confirm(t.confirmApagar)) setPedidos(p=>p.filter(x=>x.id!==id));
+    if(window.confirm(t.confirmApagar)){
+      setPedidos(p=>p.filter(x=>x.id!==id));
+      deleteDoc(doc(db,"pedidos",String(id))).catch(()=>{});
+    }
   }
   function abrirEdicaoCardapio(){
     setCardapioTemp({carne:cardapio.carne.map(d=>({...d})),veg:cardapio.veg.map(d=>({...d}))});
@@ -950,6 +962,7 @@ function AppInner() {
     try{ localStorage.setItem("dadosCliente",JSON.stringify({nome:form.nome,tel:form.tel,end:form.end,endApto:form.endApto,endBuzzer:form.endBuzzer,endCity:form.endCity,endProv:form.endProv,endCep:form.endCep})); }catch(_){}
     const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,dia:diaPedido,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endApto:form.endApto||"",endBuzzer:form.endBuzzer||"",endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
     setPedidos(p=>[novo,...p]);setNovos(n=>n+1);
+    setDoc(doc(db,"pedidos",String(novo.id)),novo).catch(()=>{});
     setAlerta({num,nome:form.nome,total,hora:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc});
     window.location.href=`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msgCoz)}`;
     setCarrinho({});setObs({});setExtra({});setGorjeta(0);setGorjetaModo("percent");setGorjetaCustom("");setCheckout(false);
@@ -1349,7 +1362,7 @@ function AppInner() {
                       {p.comentario&&<span style={{fontSize:10,background:"#E8EAFB",color:"#3A3AA0",borderRadius:10,padding:"2px 7px",fontWeight:700}}>{t.badComent}</span>}
                     </div>
                   </div>
-                  {p.alergia&&!p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}><button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,ciente:true}:x))} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#A03030",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.ciente}</button></div>}
+                  {p.alergia&&!p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}><button onClick={()=>atualizarPedido(p.id,{ciente:true})} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#A03030",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.ciente}</button></div>}
                   {p.alergia&&p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13}}>✅</span><span style={{fontSize:11.5,color:"#3A8A30",fontWeight:600}}>{t.cienteOk}</span></div>}
                   {/* Confirmação ao cliente — visual + envio numa coisa só */}
                   {!p.confirmadoCliente&&(
@@ -1363,7 +1376,7 @@ function AppInner() {
                       <button onClick={()=>{
                         const msg=`✅ *Pedido #${p.num} recebido!*\n\nOlá, ${p.cliente}! 🍱\n\nSeu pedido foi recebido e já está sendo preparado com carinho.\n\n⏱ Previsão: *${p.previsao}*\n${p.tipo==="entrega"?"🛵 Entrega no seu endereço":"🏠 Retirada"}\n\nObrigada pela preferência! 💛\n\n— Tempero da Vó`;
                         window.location.href=`https://wa.me/1${p.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msg)}`;
-                        setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,confirmadoCliente:true}:x));
+                        atualizarPedido(p.id,{confirmadoCliente:true});
                       }} style={{width:"100%",padding:"10px 0",borderRadius:10,border:"none",background:"#25D366",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
                         <span>💬</span> {t.envConf}
                       </button>
@@ -1377,10 +1390,10 @@ function AppInner() {
                   )}
                   {(!p.entregue||!p.pago)&&(
                     <div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px",display:"flex",gap:8}}>
-                      {!p.entregue&&<button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,entregue:true}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #3A8A30`,background:"transparent",color:"#3A8A30",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.marcarEnt}</button>}
+                      {!p.entregue&&<button onClick={()=>atualizarPedido(p.id,{entregue:true})} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #3A8A30`,background:"transparent",color:"#3A8A30",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.marcarEnt}</button>}
                       {p.entregue&&!p.pago&&<>
-                        <button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,pago:true}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:"none",background:"#3A8A30",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.confirmarPag}</button>
-                        <button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,pago:false}:x))} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #E05050`,background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.naoPago}</button>
+                        <button onClick={()=>atualizarPedido(p.id,{pago:true})} style={{flex:1,padding:"8px 0",borderRadius:10,border:"none",background:"#3A8A30",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.confirmarPag}</button>
+                        <button onClick={()=>atualizarPedido(p.id,{pago:false})} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #E05050`,background:"transparent",color:"#E05050",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.naoPago}</button>
                       </>}
                     </div>
                   )}
@@ -1462,7 +1475,7 @@ function AppInner() {
                           <textarea rows={3} value={fbTxt} onChange={e=>setFbTxt(e.target.value)} placeholder={t.fbPh}
                             style={{width:"100%",padding:"8px 10px",borderRadius:8,border:`1px solid ${O}`,fontSize:13,fontFamily:"inherit",color:"#2A1F00",background:"#FBF6EA",resize:"none",boxSizing:"border-box"}}/>
                           <div style={{display:"flex",gap:8,marginTop:6}}>
-                            <button onClick={()=>{setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,comentario:fbTxt.trim()}:x));setFbAberto(null);setFbTxt("");}} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:O,color:P,fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.fbEnv}</button>
+                            <button onClick={()=>{atualizarPedido(p.id,{comentario:fbTxt.trim()});setFbAberto(null);setFbTxt("");}} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:O,color:P,fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.fbEnv}</button>
                             <button onClick={()=>{setFbAberto(null);setFbTxt("");}} style={{flex:1,padding:"8px 0",borderRadius:8,border:`1px solid ${BL}`,background:"transparent",fontSize:13,cursor:"pointer",color:MU}}>{t.fbCancel}</button>
                           </div>
                         </div>
@@ -1749,7 +1762,7 @@ function AppInner() {
                   {naoPag.map(p=>(
                     <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${BL}`}}>
                       <div><div style={{fontSize:13,fontWeight:600,color:TI}}>{p.cliente} <span style={{fontSize:10,color:MU}}>#{p.num}</span></div><div style={{fontSize:11,color:MU}}>{p.tel}</div></div>
-                      <div style={{textAlign:"right"}}><div style={{fontWeight:700,color:"#E05050",fontSize:13}}>{fmt(p.total)}</div><button onClick={()=>setPedidos(pv=>pv.map(x=>x.id===p.id?{...x,pago:true}:x))} style={{fontSize:10,color:"#3A8A30",background:"transparent",border:"1px solid #3A8A30",borderRadius:8,padding:"2px 7px",cursor:"pointer",marginTop:3}}>{t.cMarcarPago}</button></div>
+                      <div style={{textAlign:"right"}}><div style={{fontWeight:700,color:"#E05050",fontSize:13}}>{fmt(p.total)}</div><button onClick={()=>atualizarPedido(p.id,{pago:true})} style={{fontSize:10,color:"#3A8A30",background:"transparent",border:"1px solid #3A8A30",borderRadius:8,padding:"2px 7px",cursor:"pointer",marginTop:3}}>{t.cMarcarPago}</button></div>
                     </div>
                   ))}
                 </div>

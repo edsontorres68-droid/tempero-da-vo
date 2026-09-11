@@ -1964,6 +1964,7 @@ function AppInner() {
                 ?<div style={{fontSize:12,color:MU,textAlign:"center",padding:"10px 0"}}>{t.buscarClienteVazio}</div>
                 :<>
                   <div style={{fontSize:12,color:MU,marginBottom:10}}>{clientesFiltrados.length} cliente{clientesFiltrados.length>1?"s":""}</div>
+                  <div style={{maxHeight:320,overflowY:"auto"}}>
                   {clientesFiltrados.map((c,i)=>{
                     const soPreCadastrado = !clientes.find(x=>x.tel.replace(/\D/g,"")===c.id);
                     return (
@@ -1982,6 +1983,7 @@ function AppInner() {
                       {enviando!==null&&enviando!==i&&<span style={{fontSize:15,color:"#3A8A30"}}>✓</span>}
                     </div>
                   );})}
+                  </div>
                   {enviando===null
                     ?<button style={{...s.btnPrinc,marginTop:12}} onClick={()=>setEnviando(0)}>{t.cliEnvTodos} ({clientesFiltrados.length})</button>
                     :<div style={{marginTop:12,textAlign:"center"}}>

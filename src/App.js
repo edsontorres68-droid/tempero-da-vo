@@ -234,11 +234,14 @@ const T = {
     espAg:"⏳ Aguardando resposta da cozinha...",espAcei:"✅ Aceito pela cozinha!",
     espRec:"❌ Não disponível hoje",espENome:"Preencha nome e telefone.",espEDesc:"Descreva o que você gostaria.",
     fbTit:"Comentários e sugestões",fbVazio:"Nenhum pedido ainda",
+    fbPedidoDe:"Pedido de",
     fbVazioPh:"Faça um pedido para deixar seu comentário.",
     fbSeu:"Seu comentário:",fbEdit:"✏️ Editar",
     fbPh:"Conte como foi sua experiência, sugestões de pratos, etc...",
     fbEnv:"Enviar",fbCancel:"Cancelar",fbBtn:"💬 Deixar comentário ou sugestão",
-    caixaTit:"💰 Relatório financeiro do dia",
+    caixaTit:"💰 Relatório financeiro",
+    caixaHoje:"📅 Hoje",caixaHistorico:"📜 Histórico",caixaMes:"🗓️ Mês",
+    caixaVoltar:"Voltar",caixaHistVazio:"Nenhum dia anterior ainda",
     cBruto:"Total bruto",cReceb:"Recebido",cAReceb:"A receber",cGorj:"Gorjetas",
     cComp:"Composição do dia",cPratos:"Pratos",cFrete:"Taxa de entrega",cTotal:"Total",
     cNaoPag:"⏳ Entregues mas não pagos",cNaoEnt:"🛵 Pedidos ainda não entregues",
@@ -360,11 +363,14 @@ const T = {
     espAg:"⏳ Waiting for kitchen response...",espAcei:"✅ Accepted by the kitchen!",
     espRec:"❌ Not available today",espENome:"Fill in name and phone.",espEDesc:"Describe what you'd like.",
     fbTit:"Reviews and suggestions",fbVazio:"No orders yet",
+    fbPedidoDe:"Order from",
     fbVazioPh:"Place an order to leave a review.",
     fbSeu:"Your review:",fbEdit:"✏️ Edit",
     fbPh:"Tell us about your experience, dish suggestions, etc...",
     fbEnv:"Send",fbCancel:"Cancel",fbBtn:"💬 Leave a review or suggestion",
-    caixaTit:"💰 Daily financial report",
+    caixaTit:"💰 Financial report",
+    caixaHoje:"📅 Today",caixaHistorico:"📜 History",caixaMes:"🗓️ Month",
+    caixaVoltar:"Back",caixaHistVazio:"No previous days yet",
     cBruto:"Gross total",cReceb:"Received",cAReceb:"Outstanding",cGorj:"Tips",
     cComp:"Breakdown",cPratos:"Dishes",cFrete:"Delivery fee",cTotal:"Total",
     cNaoPag:"⏳ Delivered but not paid",cNaoEnt:"🛵 Not yet delivered",
@@ -503,6 +509,13 @@ function proximaDataDia(diaKey){
 }
 function fmtDataCurta(data){
   return data.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"});
+}
+// Chave de dia (AAAA-MM-DD, fuso de Toronto) a partir do id do pedido (timestamp).
+function diaKeyDoPedido(p){
+  return new Date(p.id).toLocaleDateString("en-CA",{timeZone:"America/Toronto"});
+}
+function somaPedidos(lista){
+  return lista.reduce((s,p)=>({bruto:s.bruto+p.total,rec:s.rec+(p.pago?p.total:0),pend:s.pend+(p.pago?0:p.total),gorj:s.gorj+(p.gorjeta||0),frete:s.frete+(p.frete||0),pratos:s.pratos+(p.sub||0)}),{bruto:0,rec:0,pend:0,gorj:0,frete:0,pratos:0});
 }
 // Data que a sugestão votada agora realmente vale: sempre a semana CHEIA seguinte
 // ao ciclo de votação atual — nunca o dia da semana em curso (que pode já ter passado).
@@ -865,6 +878,8 @@ function AppInner() {
   const [enviando,setEnviando]   = useState(null);
   const [fbAberto,setFbAberto]   = useState(null);
   const [fbTxt,setFbTxt]         = useState("");
+  const [caixaView,setCaixaView] = useState("hoje");
+  const [diaHistSel,setDiaHistSel] = useState(null);
   // eslint-disable-next-line no-unused-vars
   const [tick,setTick]           = useState(0);
   const prev = useRef(0);
@@ -1639,15 +1654,15 @@ function AppInner() {
         {aba==="feedback"&&(
           <div>
             <div style={s.secTit}>{t.fbTit}</div>
-            {pedidos.length===0
-              ?<div style={s.vazio}><div style={{fontSize:36}}>💬</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{t.fbVazio}</div><div style={{fontSize:12,color:MU}}>{t.fbVazioPh}</div></div>
-              :pedidos.map(p=>(
+            {(()=>{
+              const meuTel=(form.tel||"").replace(/\D/g,"");
+              const meusPedidos=meuTel?pedidos.filter(p=>(p.tel||"").replace(/\D/g,"")===meuTel):[];
+              if(meusPedidos.length===0) return <div style={s.vazio}><div style={{fontSize:36}}>💬</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{t.fbVazio}</div><div style={{fontSize:12,color:MU}}>{t.fbVazioPh}</div></div>;
+              return meusPedidos.map(p=>(
                 <div key={p.id} style={{...s.card,marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontWeight:600,fontSize:13,color:TI}}>#{p.num}</span><span style={{fontSize:11,color:MU}}>{p.hora}</span></div>
-                  <div style={{fontSize:11.5,color:MU,marginBottom:8}}>{p.itens}</div>
+                  <div style={{fontSize:11,color:MU,marginBottom:8}}>{t.fbPedidoDe} {p.hora}{p.dia?` · ${t[`dia_${p.dia}`]}`:""}</div>
                   {p.comentario
                     ?<div style={{background:CA,borderRadius:8,padding:"8px 10px",border:`1px solid ${BL}`}}>
-                        <div style={{fontSize:10,color:MU,marginBottom:3}}>{t.fbSeu}</div>
                         <div style={{fontSize:13,color:TI,fontStyle:"italic",lineHeight:1.5}}>"{p.comentario}"</div>
                         <button onClick={()=>{setFbAberto(p.id);setFbTxt(p.comentario);}} style={{fontSize:11,color:O,background:"transparent",border:"none",cursor:"pointer",marginTop:5,padding:0}}>{t.fbEdit}</button>
                       </div>
@@ -1663,8 +1678,8 @@ function AppInner() {
                       :<button onClick={()=>{setFbAberto(p.id);setFbTxt("");}} style={{width:"100%",padding:"9px 0",borderRadius:10,border:`1px dashed ${BL}`,background:"transparent",color:MU,fontSize:13,cursor:"pointer"}}>{t.fbBtn}</button>
                   }
                 </div>
-              ))
-            }
+              ));
+            })()}
           </div>
         )}
 
@@ -1942,55 +1957,100 @@ function AppInner() {
       )}
 
         {aba==="caixa"&&(()=>{
-          const tots=pedidos.reduce((s,p)=>({bruto:s.bruto+p.total,rec:s.rec+(p.pago?p.total:0),pend:s.pend+(p.pago?0:p.total),gorj:s.gorj+(p.gorjeta||0),frete:s.frete+(p.frete||0),pratos:s.pratos+(p.sub||0)}),{bruto:0,rec:0,pend:0,gorj:0,frete:0,pratos:0});
-          const naoPag=pedidos.filter(p=>!p.pago&&p.entregue);
-          const naoEnt=pedidos.filter(p=>!p.entregue);
+          const hojeKey = getTorontoDate().toLocaleDateString("en-CA",{timeZone:"America/Toronto"});
+          const mesKey = hojeKey.slice(0,7);
+          const pedidosHoje = pedidos.filter(p=>diaKeyDoPedido(p)===hojeKey);
+          const pedidosMes = pedidos.filter(p=>diaKeyDoPedido(p).slice(0,7)===mesKey);
+          const porDia = {};
+          pedidos.forEach(p=>{ const k=diaKeyDoPedido(p); if(k!==hojeKey){ (porDia[k]=porDia[k]||[]).push(p); } });
+          const diasOrdenados = Object.keys(porDia).sort((a,b)=>b.localeCompare(a));
+
+          const renderResumo = (lista)=>{
+            const tots = somaPedidos(lista);
+            const naoPag = lista.filter(p=>!p.pago&&p.entregue);
+            const naoEnt = lista.filter(p=>!p.entregue);
+            return (
+              <>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                  {[{l:t.cBruto,v:tots.bruto,c:O},{l:t.cReceb,v:tots.rec,c:"#3A8A30"},{l:t.cAReceb,v:tots.pend,c:"#E05050"},{l:t.cGorj,v:tots.gorj,c:O}].map(m=>(
+                    <div key={m.l} style={s.card}><div style={{fontSize:10,color:MU,marginBottom:4}}>{m.l}</div><div style={{fontSize:19,fontWeight:700,color:m.c}}>{fmt(m.v)}</div></div>
+                  ))}
+                </div>
+                <div style={{...s.card,marginBottom:12}}>
+                  <div style={{fontWeight:700,fontSize:13,color:O,marginBottom:10}}>{t.cComp}</div>
+                  {[{l:t.cPratos,v:tots.pratos},{l:t.cFrete,v:tots.frete},{l:t.cGorj,v:tots.gorj}].map(r=>(
+                    <div key={r.l} style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:7,paddingBottom:7,borderBottom:`1px solid ${BL}`}}><span style={{color:MU}}>{r.l}</span><span style={{color:TI,fontWeight:600}}>{fmt(r.v)}</span></div>
+                  ))}
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:700}}><span>{t.cTotal}</span><span style={{color:O}}>{fmt(tots.bruto)}</span></div>
+                </div>
+                {naoPag.length>0&&(
+                  <div style={{...s.card,marginBottom:12,border:"1px solid #E05050"}}>
+                    <div style={{fontWeight:700,fontSize:13,color:"#E05050",marginBottom:10}}>{t.cNaoPag}</div>
+                    {naoPag.map(p=>(
+                      <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${BL}`}}>
+                        <div><div style={{fontSize:13,fontWeight:600,color:TI}}>{p.cliente} <span style={{fontSize:10,color:MU}}>#{p.num}</span></div><div style={{fontSize:11,color:MU}}>{p.tel}</div></div>
+                        <div style={{textAlign:"right"}}><div style={{fontWeight:700,color:"#E05050",fontSize:13}}>{fmt(p.total)}</div><button onClick={()=>atualizarPedido(p.id,{pago:true})} style={{fontSize:10,color:"#3A8A30",background:"transparent",border:"1px solid #3A8A30",borderRadius:8,padding:"2px 7px",cursor:"pointer",marginTop:3}}>{t.cMarcarPago}</button></div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {naoEnt.length>0&&(
+                  <div style={{...s.card,marginBottom:12,border:`1px solid ${O}`}}>
+                    <div style={{fontWeight:700,fontSize:13,color:O,marginBottom:10}}>{t.cNaoEnt}</div>
+                    {naoEnt.map(p=>(
+                      <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${BL}`}}>
+                        <div><div style={{fontSize:13,fontWeight:600,color:TI}}>{p.cliente} <span style={{fontSize:10,color:MU}}>#{p.num}</span></div><div style={{fontSize:11,color:MU}}>{t.prevLabel} {p.previsao}</div></div>
+                        <div style={{fontWeight:700,color:O,fontSize:13}}>{fmt(p.total)}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {lista.length===0&&<div style={s.vazio}><div style={{fontSize:36}}>💰</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{t.cNenhum}</div></div>}
+                {lista.length>0&&(
+                  <div style={{background:"#EAF6E8",border:"1px solid #3A8A30",borderRadius:14,padding:"12px 14px"}}>
+                    <div style={{fontSize:13,color:"#3A8A30",lineHeight:1.8}}>
+                      📦 {lista.length} pedido{lista.length>1?"s":""}<br/>
+                      ✅ {lista.filter(p=>p.pago).length} pago{lista.filter(p=>p.pago).length>1?"s":""}<br/>
+                      ⏳ {lista.filter(p=>!p.pago).length} pendente{lista.filter(p=>!p.pago).length>1?"s":""}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          };
+
           return (
             <div>
               <div style={s.secTit}>{t.caixaTit}</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-                {[{l:t.cBruto,v:tots.bruto,c:O},{l:t.cReceb,v:tots.rec,c:"#3A8A30"},{l:t.cAReceb,v:tots.pend,c:"#E05050"},{l:t.cGorj,v:tots.gorj,c:O}].map(m=>(
-                  <div key={m.l} style={s.card}><div style={{fontSize:10,color:MU,marginBottom:4}}>{m.l}</div><div style={{fontSize:19,fontWeight:700,color:m.c}}>{fmt(m.v)}</div></div>
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                {[["hoje",t.caixaHoje],["historico",t.caixaHistorico],["mes",t.caixaMes]].map(([k,label])=>(
+                  <button key={k} onClick={()=>{setCaixaView(k);setDiaHistSel(null);}}
+                    style={{flex:1,padding:"8px 4px",borderRadius:10,border:caixaView===k?`2px solid ${O}`:`1px solid ${BL}`,background:caixaView===k?CA:"transparent",color:caixaView===k?O:MU,fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                    {label}
+                  </button>
                 ))}
               </div>
-              <div style={{...s.card,marginBottom:12}}>
-                <div style={{fontWeight:700,fontSize:13,color:O,marginBottom:10}}>{t.cComp}</div>
-                {[{l:t.cPratos,v:tots.pratos},{l:t.cFrete,v:tots.frete},{l:t.cGorj,v:tots.gorj}].map(r=>(
-                  <div key={r.l} style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:7,paddingBottom:7,borderBottom:`1px solid ${BL}`}}><span style={{color:MU}}>{r.l}</span><span style={{color:TI,fontWeight:600}}>{fmt(r.v)}</span></div>
-                ))}
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:14,fontWeight:700}}><span>{t.cTotal}</span><span style={{color:O}}>{fmt(tots.bruto)}</span></div>
-              </div>
-              {naoPag.length>0&&(
-                <div style={{...s.card,marginBottom:12,border:"1px solid #E05050"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#E05050",marginBottom:10}}>{t.cNaoPag}</div>
-                  {naoPag.map(p=>(
-                    <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${BL}`}}>
-                      <div><div style={{fontSize:13,fontWeight:600,color:TI}}>{p.cliente} <span style={{fontSize:10,color:MU}}>#{p.num}</span></div><div style={{fontSize:11,color:MU}}>{p.tel}</div></div>
-                      <div style={{textAlign:"right"}}><div style={{fontWeight:700,color:"#E05050",fontSize:13}}>{fmt(p.total)}</div><button onClick={()=>atualizarPedido(p.id,{pago:true})} style={{fontSize:10,color:"#3A8A30",background:"transparent",border:"1px solid #3A8A30",borderRadius:8,padding:"2px 7px",cursor:"pointer",marginTop:3}}>{t.cMarcarPago}</button></div>
+              {caixaView==="hoje"&&renderResumo(pedidosHoje)}
+              {caixaView==="mes"&&renderResumo(pedidosMes)}
+              {caixaView==="historico"&&(
+                diaHistSel
+                  ? <div>
+                      <button onClick={()=>setDiaHistSel(null)} style={{fontSize:12,color:O,background:"transparent",border:"none",cursor:"pointer",marginBottom:10,padding:0}}>← {t.caixaVoltar}</button>
+                      <div style={{fontWeight:700,fontSize:14,color:TI,marginBottom:12}}>{diaHistSel}</div>
+                      {renderResumo(porDia[diaHistSel]||[])}
                     </div>
-                  ))}
-                </div>
-              )}
-              {naoEnt.length>0&&(
-                <div style={{...s.card,marginBottom:12,border:`1px solid ${O}`}}>
-                  <div style={{fontWeight:700,fontSize:13,color:O,marginBottom:10}}>{t.cNaoEnt}</div>
-                  {naoEnt.map(p=>(
-                    <div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${BL}`}}>
-                      <div><div style={{fontSize:13,fontWeight:600,color:TI}}>{p.cliente} <span style={{fontSize:10,color:MU}}>#{p.num}</span></div><div style={{fontSize:11,color:MU}}>{t.prevLabel} {p.previsao}</div></div>
-                      <div style={{fontWeight:700,color:O,fontSize:13}}>{fmt(p.total)}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {pedidos.length===0&&<div style={s.vazio}><div style={{fontSize:36}}>💰</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{t.cNenhum}</div></div>}
-              {pedidos.length>0&&(
-                <div style={{background:"#EAF6E8",border:"1px solid #3A8A30",borderRadius:14,padding:"12px 14px"}}>
-                  <div style={{fontSize:13,color:"#A0ECA0",lineHeight:1.8}}>
-                    📦 {pedidos.length} pedido{pedidos.length>1?"s":""}<br/>
-                    ✅ {pedidos.filter(p=>p.pago).length} pago{pedidos.filter(p=>p.pago).length>1?"s":""}<br/>
-                    ⏳ {pedidos.filter(p=>!p.pago).length} pendente{pedidos.filter(p=>!p.pago).length>1?"s":""}
-                  </div>
-                </div>
+                  : (diasOrdenados.length===0
+                      ? <div style={s.vazio}><div style={{fontSize:36}}>📜</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{t.caixaHistVazio}</div></div>
+                      : diasOrdenados.map(k=>{
+                          const l=porDia[k]; const tt=somaPedidos(l);
+                          return (
+                            <button key={k} onClick={()=>setDiaHistSel(k)} style={{...s.card,display:"flex",justifyContent:"space-between",alignItems:"center",width:"100%",marginBottom:8,cursor:"pointer",border:`1px solid ${BL}`,textAlign:"left"}}>
+                              <div><div style={{fontWeight:700,fontSize:13,color:TI}}>{k}</div><div style={{fontSize:11,color:MU}}>{l.length} pedido{l.length>1?"s":""}</div></div>
+                              <div style={{fontWeight:700,color:O,fontSize:14}}>{fmt(tt.bruto)}</div>
+                            </button>
+                          );
+                        })
+                    )
               )}
             </div>
           );

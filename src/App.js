@@ -209,6 +209,7 @@ const T = {
     pedRec:"Pedidos recebidos",nenhumPed:"Nenhum pedido ativo",
     pedAtivos:"Ativos",pedHistorico:"Histórico",nenhumHist:"Nenhum pedido no histórico ainda",
     apagarPed:"Apagar do histórico",confirmApagar:"Apagar este pedido do histórico? Essa ação não pode ser desfeita.",
+    confirmSair:"Tem certeza que quer sair da cozinha? Você vai precisar digitar a senha de novo pra entrar.",
     prevLabel:"⏱ Previsão:",
     badEnt:"✅ Entregue",badPago:"💳 Pago",badPend:"⏳ Pagamento pendente",badComent:"💬 Comentário",
     ciente:"🚨 Confirmar: ciente da alergia — pode preparar",
@@ -325,6 +326,7 @@ const T = {
     pedRec:"Orders received",nenhumPed:"No active orders",
     pedAtivos:"Active",pedHistorico:"History",nenhumHist:"No orders in history yet",
     apagarPed:"Delete from history",confirmApagar:"Delete this order from history? This can't be undone.",
+    confirmSair:"Are you sure you want to leave the kitchen? You'll need to enter the password again to get back in.",
     prevLabel:"⏱ ETA:",
     badEnt:"✅ Delivered",badPago:"💳 Paid",badPend:"⏳ Payment pending",badComent:"💬 Review",
     ciente:"🚨 Confirm: allergy noted — can prepare",
@@ -1594,7 +1596,7 @@ function AppInner() {
                   </div>
                   {/* Botões topo cozinha */}
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:12,alignItems:"center"}}>
-                    <button onClick={()=>{setAba("cardapio");setCozinhaAuth(false);try{localStorage.removeItem("cozinhaAutenticada");}catch(_){}}}
+                    <button onClick={()=>{ if(window.confirm(t.confirmSair)){ setAba("cardapio");setCozinhaAuth(false);try{localStorage.removeItem("cozinhaAutenticada");}catch(_){} } }}
                       style={{fontSize:11,color:"#E05050",background:"transparent",border:"1px solid #E0505044",borderRadius:20,padding:"5px 12px",cursor:"pointer"}}>
                       🔒 Sair da cozinha
                     </button>

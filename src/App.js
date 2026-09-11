@@ -167,6 +167,9 @@ const T = {
     prazoMsg:"Prazo encerrado. Prato definido pela cozinha:",
     segunda:"2ª opção",
     extra:"🥩 Carne extra",extraPor:"por 100g",extraInfo:"a mais",
+    modoCombo:"Marmita completa",modoAvulso:"Só a carne",
+    modoAvulsoInfo:"Pedido avulso: só a carne, sem arroz, feijão e salada.",
+    avulsoIndisponivel:"⚠️ Preço avulso ainda não cadastrado pra algum item — usando o preço da marmita completa por enquanto.",
     obsPh:"Observações (sem cebola, pouco sal...)",obsSave:"Salvar",obsCancel:"Cancelar",
     votTit:"Dê sua sugestão para a próxima semana",votOff:"🔒 Sugestão encerrada",
     votValidoPara:"Vale para a semana de",votAte:"Vote até",votAs18h:"às 18h",
@@ -210,6 +213,11 @@ const T = {
     pedAtivos:"Ativos",pedHistorico:"Histórico",nenhumHist:"Nenhum pedido no histórico ainda",
     apagarPed:"Apagar do histórico",confirmApagar:"Apagar este pedido do histórico? Essa ação não pode ser desfeita.",
     confirmSair:"Tem certeza que quer sair da cozinha? Você vai precisar digitar a senha de novo pra entrar.",
+    avulsoTag:"PEDIDO AVULSO — sem arroz/feijão/salada",
+    avulsoLiberar:"Liberar avulso",avulsoLiberado:"Avulso liberado",
+    cliAvulsoInfo:"Toque no botão 🍗 pra liberar (ou revogar) a opção de pedido avulso (só a carne) pra um cliente específico.",
+    preNomePh:"Nome do cliente",preCadastradoTag:"pré-cadastrado",
+    ativarNotif:"Ativar som e aviso de novo pedido",bipNovoPedido:"🔔 Novo pedido chegou no Tempero da Vó!",
     prevLabel:"⏱ Previsão:",
     badEnt:"✅ Entregue",badPago:"💳 Pago",badPend:"⏳ Pagamento pendente",badComent:"💬 Comentário",
     ciente:"🚨 Confirmar: ciente da alergia — pode preparar",
@@ -261,6 +269,7 @@ const T = {
     cliTodos:"✅ Todos receberam o menu!",cliFechar:"Fechar",
     editTit:"Menu do dia",editDef:"Defina os 2 pratos de hoje:",editPrato:"Prato",
     editDesc:"Descrição",editPreco:"Preço CA$",editSalvar:"Salvar menu do dia ✓",
+    editPrecoAvulso:"Preço avulso (só carne)",
     editPrecoExtraTit:"🥩 Valor da carne extra",editPrecoExtra:"Preço CA$",
     avisoTit:"⚠️ Aviso do dia (opcional)",
     avisoSub:"Use para informar clientes sobre ingredientes alternativos, substituições ou mudanças especiais desta semana.",
@@ -284,6 +293,9 @@ const T = {
     prazoMsg:"Deadline passed. Today's dish set by the kitchen:",
     segunda:"2nd option",
     extra:"🥩 Extra meat",extraPor:"per 100g",extraInfo:"extra",
+    modoCombo:"Full meal",modoAvulso:"Meat only",
+    modoAvulsoInfo:"À la carte order: just the meat, no rice, beans or salad.",
+    avulsoIndisponivel:"⚠️ À la carte price not set yet for some item — using the full meal price for now.",
     obsPh:"Notes (no onion, less salt...)",obsSave:"Save",obsCancel:"Cancel",
     votTit:"Give your suggestion for next week",votOff:"🔒 Voting closed",
     votValidoPara:"Applies to the week of",votAte:"Vote by",votAs18h:"at 6pm",
@@ -327,6 +339,11 @@ const T = {
     pedAtivos:"Active",pedHistorico:"History",nenhumHist:"No orders in history yet",
     apagarPed:"Delete from history",confirmApagar:"Delete this order from history? This can't be undone.",
     confirmSair:"Are you sure you want to leave the kitchen? You'll need to enter the password again to get back in.",
+    avulsoTag:"À LA CARTE ORDER — no rice/beans/salad",
+    avulsoLiberar:"Enable à la carte",avulsoLiberado:"À la carte enabled",
+    cliAvulsoInfo:"Tap the 🍗 button to enable (or revoke) the à la carte order option (meat only) for a specific customer.",
+    preNomePh:"Customer name",preCadastradoTag:"pre-registered",
+    ativarNotif:"Enable new order sound and alert",bipNovoPedido:"🔔 New order at Tempero da Vó!",
     prevLabel:"⏱ ETA:",
     badEnt:"✅ Delivered",badPago:"💳 Paid",badPend:"⏳ Payment pending",badComent:"💬 Review",
     ciente:"🚨 Confirm: allergy noted — can prepare",
@@ -378,6 +395,7 @@ const T = {
     cliTodos:"✅ Everyone received the menu!",cliFechar:"Close",
     editTit:"Today's menu",editDef:"Set today's 2 dishes:",editPrato:"Dish",
     editDesc:"Description",editPreco:"Price CA$",editSalvar:"Save today's menu ✓",
+    editPrecoAvulso:"À la carte price (meat only)",
     editPrecoExtraTit:"🥩 Extra meat price",editPrecoExtra:"Price CA$",
     avisoTit:"⚠️ Daily notice (optional)",
     avisoSub:"Use this to inform clients about alternative ingredients, substitutions or special changes this week.",
@@ -747,6 +765,26 @@ function AppInner() {
     }
   }
   const [cozinhaAuth,setCozinhaAuth]   = useState(()=>{ try{ return localStorage.getItem("cozinhaAutenticada")==="1"; }catch(_){ return false; } });
+  const cozinhaAuthRef = useRef(cozinhaAuth);
+  useEffect(()=>{ cozinhaAuthRef.current=cozinhaAuth; },[cozinhaAuth]);
+  const maxPedidoIdRef = useRef(null);
+  function tocarBip(){
+    try{
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      [0,0.22].forEach(delay=>{
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = 920;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime+delay);
+        gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime+delay+0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+delay+0.2);
+        osc.start(ctx.currentTime+delay); osc.stop(ctx.currentTime+delay+0.22);
+      });
+      if(typeof Notification!=="undefined"&&Notification.permission==="granted"){
+        try{ new Notification(t.bipNovoPedido); }catch(_){}
+      }
+    }catch(_){}
+  }
   const [senhaInput,setSenhaInput]     = useState("");
   const [senhaErro,setSenhaErro]       = useState("");
   const [trocandoSenha,setTrocandoSenha] = useState(false);
@@ -782,6 +820,10 @@ function AppInner() {
   const [extra,setExtra]         = useState({});
   const [pedidos,setPedidos]     = useState([]);
   const [clientes,setClientes]   = useState([]);
+  const [clientesAvulso,setClientesAvulso] = useState({});
+  const [clientesPreCadastro,setClientesPreCadastro] = useState({});
+  const [novoPreNome,setNovoPreNome] = useState("");
+  const [novoPreTel,setNovoPreTel] = useState("");
   const [especiais,setEspeciais] = useState([]);
   const [form,setForm]           = useState(()=>{
     try{
@@ -793,6 +835,7 @@ function AppInner() {
   const [especForm,setEspecForm] = useState({nome:"",tel:"",desc:"",obs:""});
   const [especErro,setEspecErro] = useState("");
   const [gorjeta,setGorjeta]     = useState(0);
+  const [avulso,setAvulso]       = useState(false);
   const [gorjetaModo,setGorjetaModo] = useState("percent");
   const [gorjetaCustom,setGorjetaCustom] = useState("");
   const [distanciaKm,setDistanciaKm] = useState(null);
@@ -839,10 +882,23 @@ function AppInner() {
     const unsubCardapio = onSnapshot(doc(db,"estado","cardapioCompleto"), snap=>{
       if(snap.exists()){ const d=snap.data(); if(d.carne&&d.veg){ setCardapio(d); try{ localStorage.setItem("cardapioCompleto",JSON.stringify(d)); }catch(_){} } }
     }, ()=>{});
+    const unsubClientesAvulso = onSnapshot(doc(db,"estado","clientesAvulso"), snap=>{
+      setClientesAvulso(snap.exists()?snap.data():{});
+    }, ()=>{});
+    const unsubPreCadastro = onSnapshot(doc(db,"estado","clientesPreCadastro"), snap=>{
+      setClientesPreCadastro(snap.exists()?snap.data():{});
+    }, ()=>{});
     const unsubPedidos = onSnapshot(collection(db,"pedidos"), snap=>{
       const lista=snap.docs.map(d=>d.data());
       lista.sort((a,b)=>(b.id||0)-(a.id||0));
       setPedidos(lista);
+      const maxId = lista.length?lista[0].id:0;
+      if(maxPedidoIdRef.current===null){
+        maxPedidoIdRef.current = maxId;
+      } else if(maxId>maxPedidoIdRef.current){
+        maxPedidoIdRef.current = maxId;
+        if(cozinhaAuthRef.current) tocarBip();
+      }
     }, ()=>{});
     const unsubVotos = onSnapshot(doc(db,"estado","votos"), snap=>{
       if(snap.exists()){
@@ -852,7 +908,7 @@ function AppInner() {
       }
       setVotosCarregados(true);
     }, ()=>{ setVotosCarregados(true); });
-    return ()=>{ unsubMenu(); unsubCardapio(); unsubPedidos(); unsubVotos(); };
+    return ()=>{ unsubMenu(); unsubCardapio(); unsubClientesAvulso(); unsubPreCadastro(); unsubPedidos(); unsubVotos(); };
   },[]);
   useEffect(()=>{
     // Reinicia o "já votei" deste celular quando começa um novo ciclo de votação
@@ -892,12 +948,21 @@ function AppInner() {
   const restante = tempoRestante();
   const lembrete = deveEnviarLembrete();
 
+  const avulsoLiberadoParaMim = !!clientesAvulso[(form.tel||"").replace(/\D/g,"")];
+  useEffect(()=>{ if(!avulsoLiberadoParaMim&&avulso) setAvulso(false); },[avulsoLiberadoParaMim,avulso]);
+  const todosClientes = useMemo(()=>{
+    const mapa={};
+    clientes.forEach(c=>{ const k=c.tel.replace(/\D/g,""); if(k) mapa[k]={id:k,nome:c.nome,tel:c.tel}; });
+    Object.values(clientesPreCadastro).forEach(c=>{ const k=c.tel.replace(/\D/g,""); if(k&&!mapa[k]) mapa[k]={id:k,nome:c.nome,tel:c.tel}; });
+    return Object.values(mapa);
+  },[clientes,clientesPreCadastro]);
   const itens = useMemo(()=>
     Object.entries(carrinho).filter(([,q])=>q>0).map(([id,qty])=>{
       const p=PRATOS.find(x=>x.id===id); if(!p) return null;
       const e=extra[id]||0;
-      return {id,nome:p.nome+(e>0?` +${e*100}g`:""),icon:p.icon,preco:p.preco+e*precoExtra,e,qty,obs:obs[id]||""};
-    }).filter(Boolean),[carrinho,obs,extra,PRATOS,precoExtra]);
+      const precoBase = avulso ? (p.precoAvulso??p.preco) : p.preco;
+      return {id,nome:p.nome+(e>0?` +${e*100}g`:""),icon:p.icon,preco:precoBase+e*precoExtra,e,qty,obs:obs[id]||"",semAcompanhamento:avulso&&p.precoAvulso!=null};
+    }).filter(Boolean),[carrinho,obs,extra,PRATOS,precoExtra,avulso]);
 
   const sub   = itens.reduce((s,i)=>s+i.preco*i.qty,0);
   const foraArea = form.tipo==="entrega" && distanciaKm!=null && distanciaKm>LIMITE_ENTREGA_KM;
@@ -983,6 +1048,28 @@ function AppInner() {
     setPedidos(pv=>pv.map(x=>x.id===id?{...x,...campos}:x));
     setDoc(doc(db,"pedidos",String(id)),campos,{merge:true}).catch(()=>{});
   }
+  function preCadastrarCliente(nome,tel){
+    const key=tel.replace(/\D/g,"");
+    if(!nome.trim()||key.length<10) return false;
+    const novo={...clientesPreCadastro,[key]:{nome:nome.trim(),tel}};
+    setClientesPreCadastro(novo);
+    setDoc(doc(db,"estado","clientesPreCadastro"),novo).catch(()=>{});
+    return true;
+  }
+  function removerPreCadastro(tel){
+    const key=tel.replace(/\D/g,"");
+    const novo={...clientesPreCadastro};
+    delete novo[key];
+    setClientesPreCadastro(novo);
+    setDoc(doc(db,"estado","clientesPreCadastro"),novo).catch(()=>{});
+  }
+  function toggleClienteAvulso(tel){
+    const key=tel.replace(/\D/g,"");
+    const novo={...clientesAvulso};
+    if(novo[key]) delete novo[key]; else novo[key]=true;
+    setClientesAvulso(novo);
+    setDoc(doc(db,"estado","clientesAvulso"),novo).catch(()=>{});
+  }
   function apagarPedido(id){
     if(window.confirm(t.confirmApagar)){
       setPedidos(p=>p.filter(x=>x.id!==id));
@@ -1024,17 +1111,17 @@ function AppInner() {
     const lG=gVal>0?`💛 Gorjeta: ${fmt(gVal)}\n`:"";
     const lP=form.pag==="etransfer"?"📧 e-Transfer":form.pag==="dinheiro"?"💵 Dinheiro":"💳 Cartão";
     const end=form.tipo==="entrega"?`📍 ${form.end}${form.endApto?` Apt ${form.endApto}`:""}, ${form.endCity||""}, ${form.endProv||""} ${form.endCep||""}${form.endBuzzer?`\n🔔 Buzzer: ${form.endBuzzer}`:""}`:"🏠 Retirada";
-    const msgCoz=`🔔 *PEDIDO #${num}*${form.alergia?"\n🚨 ALERGIA — LEIA ANTES DE PREPARAR":""}\n\n📅 ${t[`dia_${diaPedido}`]} (${fmtDataCurta(proximaDataDia(diaPedido))})\n\n${lns}\n\n${lF}${lG}💰 *Total: ${fmt(total)}*\n${lP}${lA}\n\n👤 ${form.nome} · 📞 ${form.tel}\n${end}\n⏱ ${hr}`;
+    const msgCoz=`🔔 *PEDIDO #${num}*${form.alergia?"\n🚨 ALERGIA — LEIA ANTES DE PREPARAR":""}${avulso?"\n🍗 *PEDIDO AVULSO — SEM ARROZ, FEIJÃO E SALADA*":""}\n\n📅 ${t[`dia_${diaPedido}`]} (${fmtDataCurta(proximaDataDia(diaPedido))})\n\n${lns}\n\n${lF}${lG}💰 *Total: ${fmt(total)}*\n${lP}${lA}\n\n👤 ${form.nome} · 📞 ${form.tel}\n${end}\n⏱ ${hr}`;
     const tel=form.tel.replace(/\D/g,"");
     setClientes(p=>p.find(c=>c.tel.replace(/\D/g,"")===tel)?p:[...p,{id:Date.now(),nome:form.nome,tel:form.tel}]);
     try{ localStorage.setItem("dadosCliente",JSON.stringify({nome:form.nome,tel:form.tel,end:form.end,endApto:form.endApto,endBuzzer:form.endBuzzer,endCity:form.endCity,endProv:form.endProv,endCep:form.endCep})); }catch(_){}
-    const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,dia:diaPedido,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endApto:form.endApto||"",endBuzzer:form.endBuzzer||"",endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
+    const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,dia:diaPedido,avulso,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endApto:form.endApto||"",endBuzzer:form.endBuzzer||"",endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
     setPedidos(p=>[novo,...p]);setNovos(n=>n+1);
     setDoc(doc(db,"pedidos",String(novo.id)),novo).catch(()=>{});
     setAlerta({num,nome:form.nome,total,hora:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc});
     window.location.href=`https://wa.me/${SEU_WHATSAPP}?text=${encodeURIComponent(msgCoz)}`;
     setCarrinho({});setObs({});setExtra({});setGorjeta(0);setGorjetaModo("percent");setGorjetaCustom("");setCheckout(false);
-    setForm(f=>({...f,tipo:"entrega",pag:"etransfer",alergia:null,alergiaDesc:""}));setAba("pedidos");
+    setForm(f=>({...f,tipo:"entrega",pag:"etransfer",alergia:null,alergiaDesc:""}));setAvulso(false);setAba("pedidos");
   }
 
   function msgMenu(nome){
@@ -1324,6 +1411,20 @@ function AppInner() {
 
         {aba==="carrinho"&&(
           <div>
+            {avulsoLiberadoParaMim&&(
+              <div style={{display:"flex",gap:8,marginBottom:14,padding:4,background:CA,borderRadius:14,border:`1px solid ${BL}`}}>
+                <button onClick={()=>setAvulso(false)}
+                  style={{flex:1,padding:"9px 4px",borderRadius:10,border:"none",background:!avulso?P:"transparent",color:!avulso?O:MU,fontWeight:700,fontSize:12.5,cursor:"pointer",boxShadow:!avulso?"0 1px 4px rgba(0,0,0,0.08)":"none"}}>
+                  🍱 {t.modoCombo}
+                </button>
+                <button onClick={()=>setAvulso(true)}
+                  style={{flex:1,padding:"9px 4px",borderRadius:10,border:"none",background:avulso?P:"transparent",color:avulso?O:MU,fontWeight:700,fontSize:12.5,cursor:"pointer",boxShadow:avulso?"0 1px 4px rgba(0,0,0,0.08)":"none"}}>
+                  🍗 {t.modoAvulso}
+                </button>
+              </div>
+            )}
+            {avulso&&<div style={{fontSize:11.5,color:O,textAlign:"center",marginBottom:12,lineHeight:1.5}}>{t.modoAvulsoInfo}</div>}
+            {avulso&&itens.some(i=>!i.semAcompanhamento)&&<div style={{fontSize:11,color:"#E05050",textAlign:"center",marginBottom:12,lineHeight:1.5}}>{t.avulsoIndisponivel}</div>}
             {itens.length===0
               ?<div style={s.vazio}><Marmita size={64}/><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{t.vazio}</div><div style={{fontSize:12,color:MU}}>{t.vazioPh}</div></div>
               :<>
@@ -1406,6 +1507,7 @@ function AppInner() {
                       <span style={{fontSize:11,color:MU}}>{p.hora}</span>
                     </div>
                     {p.dia&&<div style={{fontSize:10.5,color:O,fontWeight:700,marginBottom:3}}>📅 {t[`dia_${p.dia}`]}</div>}
+                    {p.avulso&&<div style={{fontSize:10.5,color:"#E05050",fontWeight:700,marginBottom:3}}>🍗 {t.avulsoTag}</div>}
                     <div style={{fontSize:11.5,color:MU,lineHeight:1.4,marginBottom:4}}>{p.itens}</div>
                     <div style={{fontSize:11,color:"#4A7A3A",fontWeight:600,marginBottom:4}}>{t.prevLabel} {p.previsao}</div>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
@@ -1605,6 +1707,12 @@ function AppInner() {
                       🔑 Alterar senha
                     </button>
                   </div>
+                  {typeof Notification!=="undefined"&&Notification.permission!=="granted"&&(
+                    <button onClick={()=>{ try{ Notification.requestPermission(); }catch(_){} }}
+                      style={{width:"100%",marginBottom:14,padding:"9px 0",borderRadius:10,border:`1px solid ${O}`,background:CA,color:O,fontWeight:700,fontSize:12.5,cursor:"pointer"}}>
+                      🔔 {t.ativarNotif}
+                    </button>
+                  )}
                   {trocandoSenha&&(
                     <div style={{...s.card,marginBottom:14,border:`1px solid ${O}`}}>
                       <div style={{fontWeight:700,fontSize:13,color:O,marginBottom:10}}>🔑 Alterar senha</div>
@@ -1786,24 +1894,41 @@ function AppInner() {
             </div>
             <div style={s.secTit}>{t.cliTit}</div>
             <div style={s.card}>
-              {clientes.length===0
+              <div style={{fontSize:11.5,color:MU,marginBottom:10,lineHeight:1.5}}>{t.cliAvulsoInfo}</div>
+              <div style={{display:"flex",gap:6,marginBottom:14}}>
+                <input style={{...s.inp,flex:1}} value={novoPreNome} onChange={e=>setNovoPreNome(e.target.value)} placeholder={t.preNomePh}/>
+                <input style={{...s.inp,flex:1}} value={novoPreTel} onChange={e=>setNovoPreTel(fmtTel(e.target.value))} placeholder="(647) 000-0000"/>
+                <button onClick={()=>{ if(preCadastrarCliente(novoPreNome,novoPreTel)){ setNovoPreNome(""); setNovoPreTel(""); } }}
+                  style={{padding:"0 12px",borderRadius:9,border:"none",background:O,color:"#fff",fontWeight:700,fontSize:16,cursor:"pointer",flexShrink:0}}>+</button>
+              </div>
+              {todosClientes.length===0
                 ?<div style={s.vazio}><div style={{fontSize:30}}>👥</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:6}}>{t.cliVazio}</div><div style={{fontSize:12,color:MU}}>{t.cliVazioPh}</div></div>
                 :<>
-                  <div style={{fontSize:12,color:MU,marginBottom:10}}>{clientes.length} cliente{clientes.length>1?"s":""}</div>
-                  {clientes.map((c,i)=>(
+                  <div style={{fontSize:12,color:MU,marginBottom:10}}>{todosClientes.length} cliente{todosClientes.length>1?"s":""}</div>
+                  {todosClientes.map((c,i)=>{
+                    const soPreCadastrado = !clientes.find(x=>x.tel.replace(/\D/g,"")===c.id);
+                    return (
                     <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${BL}`}}>
                       <div style={{width:34,height:34,borderRadius:"50%",background:CA,border:`1px solid ${O}`,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:14,color:O,flexShrink:0}}>{c.nome[0].toUpperCase()}</div>
-                      <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:TI}}>{c.nome}</div><div style={{fontSize:11.5,color:MU}}>{c.tel}</div></div>
-                      {enviando===i&&<button style={{padding:"6px 10px",borderRadius:20,border:"none",background:VE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={()=>{window.location.href=`https://wa.me/1${c.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msgMenu(c.nome))}`;setEnviando(i+1<clientes.length?i+1:null);}}>{t.cliEnvBtn}</button>}
+                      <div style={{flex:1}}>
+                        <div style={{fontWeight:600,fontSize:13,color:TI}}>{c.nome}{soPreCadastrado&&<span style={{fontSize:9,color:MU,fontWeight:400}}> · {t.preCadastradoTag}</span>}</div>
+                        <div style={{fontSize:11.5,color:MU}}>{c.tel}</div>
+                      </div>
+                      <button onClick={()=>toggleClienteAvulso(c.tel)}
+                        style={{fontSize:10,fontWeight:700,padding:"5px 9px",borderRadius:14,border:`1px solid ${clientesAvulso[c.tel.replace(/\D/g,"")]?"#3A8A30":BL}`,background:clientesAvulso[c.tel.replace(/\D/g,"")]?"#EAF6E8":"transparent",color:clientesAvulso[c.tel.replace(/\D/g,"")]?"#3A8A30":MU,cursor:"pointer",flexShrink:0}}>
+                        🍗 {clientesAvulso[c.tel.replace(/\D/g,"")]?t.avulsoLiberado:t.avulsoLiberar}
+                      </button>
+                      {soPreCadastrado&&<button onClick={()=>removerPreCadastro(c.tel)} style={{border:"none",background:"transparent",color:"#E05050",fontSize:15,cursor:"pointer",flexShrink:0}}>✕</button>}
+                      {enviando===i&&<button style={{padding:"6px 10px",borderRadius:20,border:"none",background:VE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={()=>{window.location.href=`https://wa.me/1${c.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msgMenu(c.nome))}`;setEnviando(i+1<todosClientes.length?i+1:null);}}>{t.cliEnvBtn}</button>}
                       {enviando!==null&&enviando!==i&&<span style={{fontSize:15,color:"#3A8A30"}}>✓</span>}
                     </div>
-                  ))}
+                  );})}
                   {enviando===null
-                    ?<button style={{...s.btnPrinc,marginTop:12}} onClick={()=>setEnviando(0)}>{t.cliEnvTodos} ({clientes.length})</button>
+                    ?<button style={{...s.btnPrinc,marginTop:12}} onClick={()=>setEnviando(0)}>{t.cliEnvTodos} ({todosClientes.length})</button>
                     :<div style={{marginTop:12,textAlign:"center"}}>
-                      <div style={{height:5,background:CA,borderRadius:6,overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:`${(enviando/clientes.length)*100}%`,background:VE,borderRadius:6,transition:"width .3s"}}/></div>
-                      <div style={{fontSize:12,color:MU,marginBottom:8}}>{enviando<clientes.length?`${t.cliEnviando} ${clientes[enviando]?.nome}... ${t.cliToque}`:t.cliTodos}</div>
-                      {enviando>=clientes.length&&<button style={{...s.btnPrinc,background:"transparent",border:`1px solid ${BL}`,color:MU}} onClick={()=>setEnviando(null)}>{t.cliFechar}</button>}
+                      <div style={{height:5,background:CA,borderRadius:6,overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:`${(enviando/todosClientes.length)*100}%`,background:VE,borderRadius:6,transition:"width .3s"}}/></div>
+                      <div style={{fontSize:12,color:MU,marginBottom:8}}>{enviando<todosClientes.length?`${t.cliEnviando} ${todosClientes[enviando]?.nome}... ${t.cliToque}`:t.cliTodos}</div>
+                      {enviando>=todosClientes.length&&<button style={{...s.btnPrinc,background:"transparent",border:`1px solid ${BL}`,color:MU}} onClick={()=>setEnviando(null)}>{t.cliFechar}</button>}
                     </div>
                   }
                 </>
@@ -1949,7 +2074,15 @@ function AppInner() {
             <label style={s.lbl}>{t.nomeLabel}</label>
             <input style={s.inp} value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})} placeholder={t.nomePh}/>
             <label style={s.lbl}>{t.telLabel}</label>
-            <input style={s.inp} value={form.tel} onChange={e=>setForm({...form,tel:fmtTel(e.target.value)})} placeholder="(647) 000-0000"/>
+            <input style={s.inp} value={form.tel} onChange={e=>setForm({...form,tel:fmtTel(e.target.value)})}
+              onBlur={()=>{
+                const key=form.tel.replace(/\D/g,"");
+                if(!form.nome.trim()&&key.length>=10){
+                  const achado=clientesPreCadastro[key]||todosClientes.find(c=>c.id===key);
+                  if(achado) setForm(f=>({...f,nome:achado.nome}));
+                }
+              }}
+              placeholder="(647) 000-0000"/>
             <label style={s.lbl}>{t.tipoLabel}</label>
             <div style={{display:"flex",gap:8,marginBottom:8}}>
               {["entrega","retirada"].map(tp=>(
@@ -2157,12 +2290,18 @@ function AppInner() {
                         onChange={e=>setMenuTemp(m=>({...m,pratosPorDia:{...m.pratosPorDia,[dia]:m.pratosPorDia[dia].map((p,i)=>i===idx?{...p,preco:e.target.value}:p)}}))}
                         onBlur={e=>{const n=parseFloat(String(e.target.value).replace(",","."));setMenuTemp(m=>({...m,pratosPorDia:{...m.pratosPorDia,[dia]:m.pratosPorDia[dia].map((p,i)=>i===idx?{...p,preco:isNaN(n)?p.preco:n}:p)}}));}}/>
                     </div>
+                    <div style={{display:"flex",gap:8,alignItems:"center",marginTop:8}}>
+                      <label style={{...s.lbl,margin:0}}>{t.editPrecoAvulso}</label>
+                      <input style={{...s.inp,width:80}} value={prato.precoAvulso??""} placeholder="—"
+                        onChange={e=>setMenuTemp(m=>({...m,pratosPorDia:{...m.pratosPorDia,[dia]:m.pratosPorDia[dia].map((p,i)=>i===idx?{...p,precoAvulso:e.target.value}:p)}}))}
+                        onBlur={e=>{const v=e.target.value; const n=parseFloat(String(v).replace(",","."));setMenuTemp(m=>({...m,pratosPorDia:{...m.pratosPorDia,[dia]:m.pratosPorDia[dia].map((p,i)=>i===idx?{...p,precoAvulso:v.trim()===""?null:(isNaN(n)?p.precoAvulso:n)}:p)}}));}}/>
+                    </div>
                   </div>
                 ))}
               </div>
             ))}
             <button style={{...s.btnPrinc,background:OE,marginBottom:16}} onClick={()=>{
-              const limpo=d=>d.map(p=>({...p,preco:parseFloat(String(p.preco).replace(",","."))||35}));
+              const limpo=d=>d.map(p=>({...p,preco:parseFloat(String(p.preco).replace(",","."))||35,precoAvulso:(p.precoAvulso===""||p.precoAvulso==null)?null:(parseFloat(String(p.precoAvulso).replace(",","."))||null)}));
               const novoMenu={pratosPorDia:{segunda:limpo(menuTemp.pratosPorDia.segunda),quarta:limpo(menuTemp.pratosPorDia.quarta),sexta:limpo(menuTemp.pratosPorDia.sexta)},aviso:menuTemp.aviso||"",precoExtra:parseFloat(String(menuTemp.precoExtra).replace(",","."))||PRECO_100G_PADRAO};
               setMenuDia(novoMenu);
               setDoc(doc(db,"estado","menu"),novoMenu).catch(()=>{});

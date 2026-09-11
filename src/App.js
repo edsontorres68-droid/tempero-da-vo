@@ -220,6 +220,8 @@ const T = {
     preNomePh:"Nome do cliente",preCadastradoTag:"pré-cadastrado",
     buscarAgenda:"Buscar da agenda de contatos",
     buscarClientePh:"🔍 Buscar por nome ou telefone",buscarClienteVazio:"Nenhum cliente encontrado",
+    clienteReconhecido:"Cliente reconhecido! Nome preenchido automaticamente.",
+    aguardandoConf:"Aguardando confirmação da cozinha",
     ativarNotif:"Ativar som e aviso de novo pedido",bipNovoPedido:"🔔 Novo pedido chegou no Tempero da Vó!",
     prevLabel:"⏱ Previsão:",
     badEnt:"✅ Entregue",badPago:"💳 Pago",badPend:"⏳ Pagamento pendente",badComent:"💬 Comentário",
@@ -352,6 +354,8 @@ const T = {
     preNomePh:"Customer name",preCadastradoTag:"pre-registered",
     buscarAgenda:"Pick from contacts",
     buscarClientePh:"🔍 Search by name or phone",buscarClienteVazio:"No customer found",
+    clienteReconhecido:"Customer recognized! Name filled in automatically.",
+    aguardandoConf:"Waiting for kitchen confirmation",
     ativarNotif:"Enable new order sound and alert",bipNovoPedido:"🔔 New order at Tempero da Vó!",
     prevLabel:"⏱ ETA:",
     badEnt:"✅ Delivered",badPago:"💳 Paid",badPend:"⏳ Payment pending",badComent:"💬 Review",
@@ -845,6 +849,7 @@ function AppInner() {
   const [novoPreNome,setNovoPreNome] = useState("");
   const [novoPreTel,setNovoPreTel] = useState("");
   const [buscaCliente,setBuscaCliente] = useState("");
+  const [clienteReconhecido,setClienteReconhecido] = useState(false);
   const [especiais,setEspeciais] = useState([]);
   const [form,setForm]           = useState(()=>{
     try{
@@ -1528,20 +1533,23 @@ function AppInner() {
           </div>
         )}
 
-        {aba==="pedidos"&&(
+        {aba==="pedidos"&&(()=>{
+          const meuTel=(form.tel||"").replace(/\D/g,"");
+          const pedidosVisiveis = cozinhaAuth ? pedidos : (meuTel?pedidos.filter(p=>(p.tel||"").replace(/\D/g,"")===meuTel):[]);
+          return (
           <div>
             <div style={{display:"flex",gap:8,marginBottom:12}}>
               <button onClick={()=>setVerHistorico(false)} style={{flex:1,padding:"9px 0",borderRadius:10,border:!verHistorico?`2px solid ${O}`:`1px solid ${BL}`,background:!verHistorico?CA:"transparent",color:!verHistorico?O:MU,fontWeight:700,fontSize:12.5,cursor:"pointer"}}>
-                📋 {t.pedAtivos} {pedidos.filter(p=>!p.pago).length>0&&`(${pedidos.filter(p=>!p.pago).length})`}
+                📋 {t.pedAtivos} {pedidosVisiveis.filter(p=>!p.pago).length>0&&`(${pedidosVisiveis.filter(p=>!p.pago).length})`}
               </button>
               <button onClick={()=>setVerHistorico(true)} style={{flex:1,padding:"9px 0",borderRadius:10,border:verHistorico?`2px solid ${O}`:`1px solid ${BL}`,background:verHistorico?CA:"transparent",color:verHistorico?O:MU,fontWeight:700,fontSize:12.5,cursor:"pointer"}}>
-                📜 {t.pedHistorico} {pedidos.filter(p=>p.pago).length>0&&`(${pedidos.filter(p=>p.pago).length})`}
+                📜 {t.pedHistorico} {pedidosVisiveis.filter(p=>p.pago).length>0&&`(${pedidosVisiveis.filter(p=>p.pago).length})`}
               </button>
             </div>
             <div style={s.secTit}>{verHistorico?t.pedHistorico:t.pedRec}</div>
-            {(verHistorico?pedidos.filter(p=>p.pago):pedidos.filter(p=>!p.pago)).length===0
+            {(verHistorico?pedidosVisiveis.filter(p=>p.pago):pedidosVisiveis.filter(p=>!p.pago)).length===0
               ?<div style={s.vazio}><div style={{fontSize:36}}>{verHistorico?"📜":"🧾"}</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:8}}>{verHistorico?t.nenhumHist:t.nenhumPed}</div></div>
-              :(verHistorico?pedidos.filter(p=>p.pago):pedidos.filter(p=>!p.pago)).map(p=>(
+              :(verHistorico?pedidosVisiveis.filter(p=>p.pago):pedidosVisiveis.filter(p=>!p.pago)).map(p=>(
                 <div key={p.id} style={{...s.card,padding:0,marginBottom:10,overflow:"hidden"}}>
                   {p.alergia&&<div style={{background:"#A03030",padding:"7px 12px",display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:16}}>🚨</span><div><div style={{fontWeight:700,fontSize:12,color:"#fff"}}>{t.alAviso}</div><div style={{fontSize:11,color:"#FFD0D0"}}>{p.alergiaDesc}</div></div></div>}
                   <div style={{padding:"10px 12px"}}>
@@ -1556,7 +1564,7 @@ function AppInner() {
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                       <span style={{fontSize:11,color:MU}}>{p.tipo==="entrega"?t.tEnt:t.tRet}</span>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        {p.tipo==="entrega"&&p.end&&(
+                        {cozinhaAuth&&p.tipo==="entrega"&&p.end&&(
                           <button
                             onClick={()=>{
                               const addr=encodeURIComponent(`${p.end}, ${p.endCity}, ${p.endProv} ${p.endCep}`);
@@ -1584,10 +1592,10 @@ function AppInner() {
                       {p.comentario&&<span style={{fontSize:10,background:"#E8EAFB",color:"#3A3AA0",borderRadius:10,padding:"2px 7px",fontWeight:700}}>{t.badComent}</span>}
                     </div>
                   </div>
-                  {p.alergia&&!p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}><button onClick={()=>atualizarPedido(p.id,{ciente:true})} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#A03030",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.ciente}</button></div>}
-                  {p.alergia&&p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13}}>✅</span><span style={{fontSize:11.5,color:"#3A8A30",fontWeight:600}}>{t.cienteOk}</span></div>}
-                  {/* Confirmação ao cliente — visual + envio numa coisa só */}
-                  {!p.confirmadoCliente&&(
+                  {cozinhaAuth&&p.alergia&&!p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px"}}><button onClick={()=>atualizarPedido(p.id,{ciente:true})} style={{width:"100%",padding:"9px 0",borderRadius:10,border:"none",background:"#A03030",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>{t.ciente}</button></div>}
+                  {cozinhaAuth&&p.alergia&&p.ciente&&<div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:13}}>✅</span><span style={{fontSize:11.5,color:"#3A8A30",fontWeight:600}}>{t.cienteOk}</span></div>}
+                  {/* Confirmação ao cliente — só a cozinha pode enviar. Cliente vê só o status. */}
+                  {cozinhaAuth&&!p.confirmadoCliente&&(
                     <div style={{borderTop:`1px solid ${BL}`,padding:"14px 12px",textAlign:"center",background:CA}}>
                       <div style={{fontSize:26,marginBottom:4}}>✅</div>
                       <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:16,color:O,marginBottom:2}}>{t.pedConf}</div>
@@ -1604,13 +1612,19 @@ function AppInner() {
                       </button>
                     </div>
                   )}
+                  {!cozinhaAuth&&!p.confirmadoCliente&&(
+                    <div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{fontSize:13}}>⏳</span>
+                      <span style={{fontSize:11.5,color:MU,fontWeight:600}}>{t.aguardandoConf}</span>
+                    </div>
+                  )}
                   {p.confirmadoCliente&&(
                     <div style={{borderTop:`1px solid ${BL}`,padding:"6px 12px",display:"flex",alignItems:"center",gap:6}}>
                       <span style={{fontSize:13}}>✅</span>
                       <span style={{fontSize:11.5,color:"#3A8A30",fontWeight:600}}>Cliente confirmado — previsão {p.previsao}</span>
                     </div>
                   )}
-                  {(!p.entregue||!p.pago)&&(
+                  {cozinhaAuth&&(!p.entregue||!p.pago)&&(
                     <div style={{borderTop:`1px solid ${BL}`,padding:"8px 12px",display:"flex",gap:8}}>
                       {!p.entregue&&<button onClick={()=>atualizarPedido(p.id,{entregue:true})} style={{flex:1,padding:"8px 0",borderRadius:10,border:`1px solid #3A8A30`,background:"transparent",color:"#3A8A30",fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.marcarEnt}</button>}
                       {p.entregue&&!p.pago&&<>
@@ -1620,7 +1634,7 @@ function AppInner() {
                     </div>
                   )}
                   {p.comentario&&<div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px",background:CA}}><div style={{fontSize:10,color:MU,marginBottom:2}}>{t.fbSeu}</div><div style={{fontSize:12,color:TI,fontStyle:"italic"}}>"{p.comentario}"</div></div>}
-                  {verHistorico&&(
+                  {cozinhaAuth&&verHistorico&&(
                     <div style={{borderTop:`1px solid ${BL}`,padding:"7px 12px"}}>
                       <button onClick={()=>apagarPedido(p.id)} style={{width:"100%",padding:"7px 0",borderRadius:9,border:"1px solid #E0505066",background:"transparent",color:"#E05050",fontWeight:600,fontSize:12,cursor:"pointer"}}>🗑 {t.apagarPed}</button>
                     </div>
@@ -1629,7 +1643,8 @@ function AppInner() {
               ))
             }
           </div>
-        )}
+          );
+        })()}
 
         {aba==="especial"&&(
           <div>
@@ -2186,15 +2201,17 @@ function AppInner() {
             <label style={s.lbl}>{t.nomeLabel}</label>
             <input style={s.inp} value={form.nome} onChange={e=>setForm({...form,nome:e.target.value})} placeholder={t.nomePh}/>
             <label style={s.lbl}>{t.telLabel}</label>
-            <input style={s.inp} value={form.tel} onChange={e=>setForm({...form,tel:fmtTel(e.target.value)})}
+            <input style={s.inp} value={form.tel} onChange={e=>{setForm({...form,tel:fmtTel(e.target.value)});setClienteReconhecido(false);}}
               onBlur={()=>{
                 const key=form.tel.replace(/\D/g,"");
-                if(!form.nome.trim()&&key.length>=10){
+                if(key.length>=10){
                   const achado=clientesPreCadastro[key]||todosClientes.find(c=>c.id===key);
-                  if(achado) setForm(f=>({...f,nome:achado.nome}));
+                  if(achado){ setForm(f=>({...f,nome:achado.nome})); setClienteReconhecido(true); }
+                  else setClienteReconhecido(false);
                 }
               }}
               placeholder="(647) 000-0000"/>
+            {clienteReconhecido&&<div style={{fontSize:11.5,color:"#3A8A30",fontWeight:600,marginTop:4,marginBottom:4}}>✓ {t.clienteReconhecido}</div>}
             <label style={s.lbl}>{t.tipoLabel}</label>
             <div style={{display:"flex",gap:8,marginBottom:8}}>
               {["entrega","retirada"].map(tp=>(

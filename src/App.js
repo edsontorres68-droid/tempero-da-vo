@@ -212,6 +212,7 @@ const T = {
     pedRec:"Pedidos recebidos",nenhumPed:"Nenhum pedido ativo",
     pedAtivos:"Ativos",pedHistorico:"Histórico",nenhumHist:"Nenhum pedido no histórico ainda",
     apagarPed:"Apagar do histórico",confirmApagar:"Apagar este pedido do histórico? Essa ação não pode ser desfeita.",
+    apagarLote:"Apagar estes pedidos (dados de teste)",confirmApagarLote:"Apagar TODOS os pedidos exibidos aqui? Essa ação não pode ser desfeita.",
     confirmSair:"Tem certeza que quer sair da cozinha? Você vai precisar digitar a senha de novo pra entrar.",
     avulsoTag:"PEDIDO AVULSO — sem arroz/feijão/salada",
     avulsoLiberar:"Liberar avulso",avulsoLiberado:"Avulso liberado",
@@ -341,6 +342,7 @@ const T = {
     pedRec:"Orders received",nenhumPed:"No active orders",
     pedAtivos:"Active",pedHistorico:"History",nenhumHist:"No orders in history yet",
     apagarPed:"Delete from history",confirmApagar:"Delete this order from history? This can't be undone.",
+    apagarLote:"Delete these orders (test data)",confirmApagarLote:"Delete ALL orders shown here? This can't be undone.",
     confirmSair:"Are you sure you want to leave the kitchen? You'll need to enter the password again to get back in.",
     avulsoTag:"À LA CARTE ORDER — no rice/beans/salad",
     avulsoLiberar:"Enable à la carte",avulsoLiberado:"À la carte enabled",
@@ -1092,6 +1094,13 @@ function AppInner() {
       setPedidos(p=>p.filter(x=>x.id!==id));
       deleteDoc(doc(db,"pedidos",String(id))).catch(()=>{});
     }
+  }
+  function apagarPedidosEmLote(lista){
+    if(lista.length===0) return;
+    if(!window.confirm(`${t.confirmApagarLote} (${lista.length})`)) return;
+    const ids=new Set(lista.map(p=>p.id));
+    setPedidos(p=>p.filter(x=>!ids.has(x.id)));
+    lista.forEach(p=>{ deleteDoc(doc(db,"pedidos",String(p.id))).catch(()=>{}); });
   }
   function abrirEdicaoCardapio(){
     setCardapioTemp({carne:cardapio.carne.map(d=>({...d})),veg:cardapio.veg.map(d=>({...d}))});
@@ -2014,6 +2023,11 @@ function AppInner() {
                       ⏳ {lista.filter(p=>!p.pago).length} pendente{lista.filter(p=>!p.pago).length>1?"s":""}
                     </div>
                   </div>
+                )}
+                {lista.length>0&&(
+                  <button onClick={()=>apagarPedidosEmLote(lista)} style={{width:"100%",marginTop:12,padding:"9px 0",borderRadius:10,border:"1px solid #E0505066",background:"transparent",color:"#E05050",fontWeight:600,fontSize:12.5,cursor:"pointer"}}>
+                    🗑️ {t.apagarLote}
+                  </button>
                 )}
               </>
             );

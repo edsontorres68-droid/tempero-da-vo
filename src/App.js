@@ -102,6 +102,47 @@ const FOTOS_PRATOS = {
   bife_vermelho:  "/pratos/carne-legumes.jpg",
 };
 
+// Tradução em inglês do nome de cada prato padrão do catálogo.
+// Usada só quando o app está em inglês; pratos criados depois pela Gi (sem tradução) mostram o nome original.
+const NOMES_PRATOS_EN = {
+  bife_aceb:"Beef with Sautéed Onions",
+  frango_temp:"Seasoned Chicken / Pot Roast",
+  peito_grelhado:"Grilled Chicken Breast",
+  bife_vermelho:"Beef in Red Sauce with Vegetables",
+  figado:"Beef Liver Steak",
+  frango_batata:"Chicken Stew with Potatoes and Carrots",
+  porco_aceb:"Pork with Sautéed Onions",
+  strog_carne:"Beef Stroganoff with Shoestring Fries",
+  strog_frango:"Chicken Stroganoff with Shoestring Fries",
+  almondega:"Meatballs in Onion Tomato Sauce",
+  picadinho:"Diced Beef with Bell Peppers",
+  costelinha:"Pork Ribs in Onion Sauce",
+  costela_mand:"Beef Short Ribs with Cassava",
+  carne_moida:"Ground Beef in Tomato Sauce",
+  carne_panela:"Pot Roast Beef with Potatoes and Carrots",
+  frango_quiabo:"Chicken Drumsticks with Okra",
+  linguicinha:"Sausage with Sautéed Onions",
+  arroz_temp:"Seasoned Rice with Bacon and Sausage",
+  frango_assado:"Roasted Chicken",
+  lombo:"Pork Loin with Sautéed Onions",
+  bife_empanado:"Breaded Beef / Chicken Cutlet",
+  rocambole:"Ground Beef Roulade",
+  carne_abobora:"Ground Beef with Kabocha Squash",
+  galinhada:"Brazilian Chicken and Rice",
+  escond_carne:"Cassava Shepherd's Pie with Beef",
+  escond_frango:"Cassava Shepherd's Pie with Chicken",
+  mac_carne:"Pasta with Ground Beef",
+  lasanha_bol:"Lasagna Bolognese",
+  mac_almondega:"Pasta with Meatballs in Onion Sauce",
+  berinjela:"Sautéed Eggplant with Onions",
+  lasanha_branco:"Ham and Cheese Lasagna",
+  mac_alfredo:"Pasta Alfredo",
+  pure_molho:"Mashed Potatoes in Sauce",
+  pure_empanado:"Breaded Mashed Potato Cutlet",
+  caldo_mandioca:"Cassava Soup",
+  caldo_abobora:"Kabocha Squash Soup",
+};
+
 const CARDAPIO_PADRAO = {
   carne:[
     {id:"bife_aceb",       nome:"Bife acebolado",                         icon:"carne"},
@@ -232,7 +273,7 @@ const T = {
     espTit:"⭐ Prato Especial",
     espDesc:"Nenhuma das opções do dia te agrada? Solicite um prato especial! Descreva o que você gostaria e a cozinha vai verificar a disponibilidade e enviar o valor.",
     espAviso:"⏱ Sujeito à disponibilidade. A cozinha responderá pelo WhatsApp.",
-    espFazer:"Fazer solicitação",espNome:"Seu nome",espTel:"Telefone (para retorno)",
+    espFazer:"Fazer solicitação",espNome:"Seu nome",espNomePh:"Ex: Maria",espTel:"Telefone (para retorno)",
     espPed:"O que você gostaria? 🍽️",espPedPh:"Ex: Arroz, feijão e tilápia grelhada...",
     espObs:"Observações (opcional)",espObsPh:"Ex: sem sal, porção maior...",
     espEnviar:"⭐ Enviar solicitação pelo WhatsApp",espHist:"Suas solicitações",
@@ -366,7 +407,7 @@ const T = {
     espTit:"⭐ Special Dish",
     espDesc:"None of today's options work for you? Request a special dish! Describe what you'd like and the kitchen will check availability and send you the price.",
     espAviso:"⏱ Subject to availability. The kitchen will reply via WhatsApp.",
-    espFazer:"Make a request",espNome:"Your name",espTel:"Phone (for follow-up)",
+    espFazer:"Make a request",espNome:"Your name",espNomePh:"E.g. Mary",espTel:"Phone (for follow-up)",
     espPed:"What would you like? 🍽️",espPedPh:"Ex: Rice, beans and grilled tilapia...",
     espObs:"Additional notes (optional)",espObsPh:"Ex: no salt, larger portion...",
     espEnviar:"⭐ Send request via WhatsApp",espHist:"Your requests",
@@ -826,7 +867,10 @@ function AppInner() {
     return CARDAPIO_PADRAO;
   });
   const todosPratos = [...cardapio.carne, ...cardapio.veg];
-  function dishById(id){ return todosPratos.find(d=>d.id===id); }
+  function nomePrato(id,nomeOriginal){
+    return (lang==="en"&&NOMES_PRATOS_EN[id]) ? NOMES_PRATOS_EN[id] : nomeOriginal;
+  }
+  function dishById(id){ const d=todosPratos.find(d=>d.id===id); return d?{...d,nome:nomePrato(d.id,d.nome)}:d; }
   const [editandoCardapio,setEditandoCardapio] = useState(false);
   const [cardapioTemp,setCardapioTemp] = useState(null);
   const [sobEncForm,setSobEncForm] = useState({nome:"",tel:"",desc:"",obs:""});
@@ -1424,7 +1468,7 @@ function AppInner() {
                                     <button key={c.id} disabled={cheio} onClick={()=>toggleSelecaoDia(dia,c.id)}
                                       style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"6px 8px",border:esv?`2px solid ${O}`:`1px solid ${BL}`,borderRadius:9,background:esv?CA:"transparent",cursor:cheio?"default":"pointer",opacity:cheio?.4:1,marginBottom:3}}>
                                       <DishImg id={c.id} tipo={c.icon} size={24}/>
-                                      <span style={{flex:1,textAlign:"left",fontSize:12,color:esv?O:TI}}>{c.nome}</span>
+                                      <span style={{flex:1,textAlign:"left",fontSize:12,color:esv?O:TI}}>{nomePrato(c.id,c.nome)}</span>
                                       {esv&&<span style={{color:O,fontWeight:700,fontSize:12}}>✓</span>}
                                     </button>
                                   );
@@ -1662,7 +1706,7 @@ function AppInner() {
             </div>
             <div style={{...s.card,marginBottom:14}}>
               <div style={{fontWeight:700,fontSize:13,color:O,marginBottom:10}}>{t.espFazer}</div>
-              <label style={s.lbl}>{t.espNome}</label><input style={s.inp} value={especForm.nome} onChange={e=>setEspecForm(f=>({...f,nome:e.target.value}))} placeholder="Ex: Maria"/>
+              <label style={s.lbl}>{t.espNome}</label><input style={s.inp} value={especForm.nome} onChange={e=>setEspecForm(f=>({...f,nome:e.target.value}))} placeholder={t.espNomePh}/>
               <label style={s.lbl}>{t.espTel}</label><input style={s.inp} value={especForm.tel} onChange={e=>setEspecForm(f=>({...f,tel:fmtTel(e.target.value)}))} placeholder="(647) 000-0000"/>
               <label style={s.lbl}>{t.espPed}</label>
               <textarea rows={3} value={especForm.desc} onChange={e=>setEspecForm(f=>({...f,desc:e.target.value}))} placeholder={t.espPedPh}
@@ -2376,7 +2420,7 @@ function AppInner() {
                   {g.lista.map(c=>(
                     <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid #E7D9BC"}}>
                       <DishImg id={c.id} tipo={c.icon} size={26}/>
-                      <span style={{fontSize:13,color:"#2A1F00"}}>{c.nome}</span>
+                      <span style={{fontSize:13,color:"#2A1F00"}}>{nomePrato(c.id,c.nome)}</span>
                     </div>
                   ))}
                 </div>

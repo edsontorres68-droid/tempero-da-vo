@@ -177,6 +177,7 @@ const T = {
     votEncerrada:"O prazo encerrou. Obrigada por votar — a cozinha vai anunciar os pratos da semana em breve!",
     sugEscolher:"Escolher 2 pratos",sugSelecionados:"selecionados",sugConfirmar:"Confirmar sugestão",
     alterarVoto:"toque para alterar",sugSalvarAlteracao:"Salvar alteração",
+    sugCancelar:"✕ Cancelar minha sugestão",
     dia_segunda:"Segunda-feira",dia_quarta:"Quarta-feira",dia_sexta:"Sexta-feira",
     vazio:"Carrinho vazio",vazioPh:"Escolha no cardápio.",
     pedir:"Pedir pelo WhatsApp 💬",
@@ -292,6 +293,7 @@ const T = {
     votEncerrada:"Voting closed. Thanks for voting — the kitchen will announce the week's dishes soon!",
     sugEscolher:"Choose 2 dishes",sugSelecionados:"selected",sugConfirmar:"Confirm suggestion",
     alterarVoto:"tap to change",sugSalvarAlteracao:"Save change",
+    sugCancelar:"✕ Cancel my suggestion",
     dia_segunda:"Monday",dia_quarta:"Wednesday",dia_sexta:"Friday",
     vazio:"Cart is empty",vazioPh:"Choose from the menu.",
     pedir:"Order via WhatsApp 💬",
@@ -932,6 +934,25 @@ function AppInner() {
     const mudou=Object.fromEntries(Object.entries(delta).filter(([,d])=>d!==0).map(([id,d])=>[id,increment(d)]));
     if(Object.keys(mudou).length) setDoc(doc(db,"estado","votos"),{[dia]:mudou},{merge:true}).catch(()=>{});
   }
+  function cancelarSugestaoDia(dia){
+    const anterior=votoFeitoSug[dia];
+    if(!anterior||expirou) return;
+    const delta={};
+    anterior.forEach(id=>{ delta[id]=(delta[id]||0)-1; });
+    setVotosSug(v=>{
+      const diaVotos={...(v[dia]||{})};
+      Object.entries(delta).forEach(([id,d])=>{ diaVotos[id]=Math.max(0,(diaVotos[id]||0)+d); });
+      return {...v,[dia]:diaVotos};
+    });
+    setVotoFeitoSug(v=>{
+      const novo={...v,[dia]:null};
+      try{ localStorage.setItem("votoFeitoSemana",JSON.stringify(novo)); }catch(_){}
+      return novo;
+    });
+    setSelecaoDia(sd=>({...sd,[dia]:[]}));
+    const mudou=Object.fromEntries(Object.entries(delta).filter(([,d])=>d!==0).map(([id,d])=>[id,increment(d)]));
+    if(Object.keys(mudou).length) setDoc(doc(db,"estado","votos"),{[dia]:mudou},{merge:true}).catch(()=>{});
+  }
   async function compartilharApp(){
     const texto="🍲 Conheça o Tempero da Vó — comida caseira brasileira em Toronto! Peça pelo app:";
     if(navigator.share){
@@ -1271,6 +1292,12 @@ function AppInner() {
                             style={{...s.btnPrinc,marginTop:8,padding:"9px 0",fontSize:13,opacity:sel.length!==2?.5:1}}>
                             {votado?t.sugSalvarAlteracao:t.sugConfirmar}
                           </button>
+                          {votado&&(
+                            <button onClick={()=>{cancelarSugestaoDia(dia);setDiaAberto(null);}}
+                              style={{width:"100%",marginTop:8,padding:"9px 0",borderRadius:10,border:"1px solid #E0505066",background:"transparent",color:"#E05050",fontWeight:600,fontSize:13,cursor:"pointer"}}>
+                              {t.sugCancelar}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

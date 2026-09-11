@@ -767,7 +767,8 @@ function AppInner() {
   const [cozinhaAuth,setCozinhaAuth]   = useState(()=>{ try{ return localStorage.getItem("cozinhaAutenticada")==="1"; }catch(_){ return false; } });
   const cozinhaAuthRef = useRef(cozinhaAuth);
   useEffect(()=>{ cozinhaAuthRef.current=cozinhaAuth; },[cozinhaAuth]);
-  const maxPedidoIdRef = useRef(null);
+  const maxPedidoIdRef = useRef((()=>{ try{ return parseInt(localStorage.getItem("ultimoPedidoVisto")||"0",10)||0; }catch(_){ return 0; } })());
+  const primeiraCargaRef = useRef((()=>{ try{ return localStorage.getItem("ultimoPedidoVisto")===null; }catch(_){ return true; } })());
   function tocarBip(){
     try{
       const ctx = new (window.AudioContext||window.webkitAudioContext)();
@@ -893,12 +894,13 @@ function AppInner() {
       lista.sort((a,b)=>(b.id||0)-(a.id||0));
       setPedidos(lista);
       const maxId = lista.length?lista[0].id:0;
-      if(maxPedidoIdRef.current===null){
+      if(maxId>maxPedidoIdRef.current){
+        const deveTocar = cozinhaAuthRef.current && !primeiraCargaRef.current;
         maxPedidoIdRef.current = maxId;
-      } else if(maxId>maxPedidoIdRef.current){
-        maxPedidoIdRef.current = maxId;
-        if(cozinhaAuthRef.current) tocarBip();
+        try{ localStorage.setItem("ultimoPedidoVisto",String(maxId)); }catch(_){}
+        if(deveTocar) tocarBip();
       }
+      primeiraCargaRef.current = false;
     }, ()=>{});
     const unsubVotos = onSnapshot(doc(db,"estado","votos"), snap=>{
       if(snap.exists()){

@@ -218,6 +218,8 @@ const T = {
     avulsoLiberar:"Liberar avulso",avulsoLiberado:"Avulso liberado",
     cliAvulsoInfo:"Toque no botão 🍗 pra liberar (ou revogar) a opção de pedido avulso (só a carne) pra um cliente específico.",
     preNomePh:"Nome do cliente",preCadastradoTag:"pré-cadastrado",
+    buscarAgenda:"Buscar da agenda de contatos",
+    buscarClientePh:"🔍 Buscar por nome ou telefone",buscarClienteVazio:"Nenhum cliente encontrado",
     ativarNotif:"Ativar som e aviso de novo pedido",bipNovoPedido:"🔔 Novo pedido chegou no Tempero da Vó!",
     prevLabel:"⏱ Previsão:",
     badEnt:"✅ Entregue",badPago:"💳 Pago",badPend:"⏳ Pagamento pendente",badComent:"💬 Comentário",
@@ -348,6 +350,8 @@ const T = {
     avulsoLiberar:"Enable à la carte",avulsoLiberado:"À la carte enabled",
     cliAvulsoInfo:"Tap the 🍗 button to enable (or revoke) the à la carte order option (meat only) for a specific customer.",
     preNomePh:"Customer name",preCadastradoTag:"pre-registered",
+    buscarAgenda:"Pick from contacts",
+    buscarClientePh:"🔍 Search by name or phone",buscarClienteVazio:"No customer found",
     ativarNotif:"Enable new order sound and alert",bipNovoPedido:"🔔 New order at Tempero da Vó!",
     prevLabel:"⏱ ETA:",
     badEnt:"✅ Delivered",badPago:"💳 Paid",badPend:"⏳ Payment pending",badComent:"💬 Review",
@@ -840,6 +844,7 @@ function AppInner() {
   const [clientesPreCadastro,setClientesPreCadastro] = useState({});
   const [novoPreNome,setNovoPreNome] = useState("");
   const [novoPreTel,setNovoPreTel] = useState("");
+  const [buscaCliente,setBuscaCliente] = useState("");
   const [especiais,setEspeciais] = useState([]);
   const [form,setForm]           = useState(()=>{
     try{
@@ -1066,6 +1071,18 @@ function AppInner() {
   function atualizarPedido(id,campos){
     setPedidos(pv=>pv.map(x=>x.id===id?{...x,...campos}:x));
     setDoc(doc(db,"pedidos",String(id)),campos,{merge:true}).catch(()=>{});
+  }
+  async function selecionarDaAgenda(){
+    if(!(navigator.contacts&&navigator.contacts.select)) return;
+    try{
+      const contatos = await navigator.contacts.select(["name","tel"],{multiple:false});
+      const c = contatos&&contatos[0];
+      if(!c) return;
+      const nome = (c.name&&c.name[0]) || "";
+      const tel = (c.tel&&c.tel[0]) || "";
+      if(nome) setNovoPreNome(nome);
+      if(tel) setNovoPreTel(fmtTel(tel));
+    }catch(_){}
   }
   function preCadastrarCliente(nome,tel){
     const key=tel.replace(/\D/g,"");
@@ -1921,17 +1938,33 @@ function AppInner() {
             <div style={s.secTit}>{t.cliTit}</div>
             <div style={s.card}>
               <div style={{fontSize:11.5,color:MU,marginBottom:10,lineHeight:1.5}}>{t.cliAvulsoInfo}</div>
+              {typeof navigator!=="undefined"&&navigator.contacts&&navigator.contacts.select&&(
+                <button onClick={selecionarDaAgenda} style={{width:"100%",marginBottom:8,padding:"9px 0",borderRadius:10,border:`1px solid ${O}`,background:CA,color:O,fontWeight:700,fontSize:12.5,cursor:"pointer"}}>
+                  📇 {t.buscarAgenda}
+                </button>
+              )}
               <div style={{display:"flex",gap:6,marginBottom:14}}>
                 <input style={{...s.inp,flex:1}} value={novoPreNome} onChange={e=>setNovoPreNome(e.target.value)} placeholder={t.preNomePh}/>
                 <input style={{...s.inp,flex:1}} value={novoPreTel} onChange={e=>setNovoPreTel(fmtTel(e.target.value))} placeholder="(647) 000-0000"/>
                 <button onClick={()=>{ if(preCadastrarCliente(novoPreNome,novoPreTel)){ setNovoPreNome(""); setNovoPreTel(""); } }}
                   style={{padding:"0 12px",borderRadius:9,border:"none",background:O,color:"#fff",fontWeight:700,fontSize:16,cursor:"pointer",flexShrink:0}}>+</button>
               </div>
-              {todosClientes.length===0
+              {todosClientes.length>0&&(
+                <input style={{...s.inp,marginBottom:12}} value={buscaCliente} onChange={e=>setBuscaCliente(e.target.value)} placeholder={t.buscarClientePh}/>
+              )}
+              {(()=>{
+                const termo=buscaCliente.trim().toLowerCase();
+                const termoNum=termo.replace(/\D/g,"");
+                const clientesFiltrados = termo
+                  ? todosClientes.filter(c=>c.nome.toLowerCase().includes(termo)||(termoNum&&c.tel.replace(/\D/g,"").includes(termoNum)))
+                  : todosClientes;
+                return todosClientes.length===0
                 ?<div style={s.vazio}><div style={{fontSize:30}}>👥</div><div style={{fontWeight:600,fontSize:14,color:TI,marginTop:6}}>{t.cliVazio}</div><div style={{fontSize:12,color:MU}}>{t.cliVazioPh}</div></div>
+                :clientesFiltrados.length===0
+                ?<div style={{fontSize:12,color:MU,textAlign:"center",padding:"10px 0"}}>{t.buscarClienteVazio}</div>
                 :<>
-                  <div style={{fontSize:12,color:MU,marginBottom:10}}>{todosClientes.length} cliente{todosClientes.length>1?"s":""}</div>
-                  {todosClientes.map((c,i)=>{
+                  <div style={{fontSize:12,color:MU,marginBottom:10}}>{clientesFiltrados.length} cliente{clientesFiltrados.length>1?"s":""}</div>
+                  {clientesFiltrados.map((c,i)=>{
                     const soPreCadastrado = !clientes.find(x=>x.tel.replace(/\D/g,"")===c.id);
                     return (
                     <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:`1px solid ${BL}`}}>
@@ -1945,25 +1978,26 @@ function AppInner() {
                         🍗 {clientesAvulso[c.tel.replace(/\D/g,"")]?t.avulsoLiberado:t.avulsoLiberar}
                       </button>
                       {soPreCadastrado&&<button onClick={()=>removerPreCadastro(c.tel)} style={{border:"none",background:"transparent",color:"#E05050",fontSize:15,cursor:"pointer",flexShrink:0}}>✕</button>}
-                      {enviando===i&&<button style={{padding:"6px 10px",borderRadius:20,border:"none",background:VE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={()=>{window.location.href=`https://wa.me/1${c.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msgMenu(c.nome))}`;setEnviando(i+1<todosClientes.length?i+1:null);}}>{t.cliEnvBtn}</button>}
+                      {enviando===i&&<button style={{padding:"6px 10px",borderRadius:20,border:"none",background:VE,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}} onClick={()=>{window.location.href=`https://wa.me/1${c.tel.replace(/\D/g,"")}?text=${encodeURIComponent(msgMenu(c.nome))}`;setEnviando(i+1<clientesFiltrados.length?i+1:null);}}>{t.cliEnvBtn}</button>}
                       {enviando!==null&&enviando!==i&&<span style={{fontSize:15,color:"#3A8A30"}}>✓</span>}
                     </div>
                   );})}
                   {enviando===null
-                    ?<button style={{...s.btnPrinc,marginTop:12}} onClick={()=>setEnviando(0)}>{t.cliEnvTodos} ({todosClientes.length})</button>
+                    ?<button style={{...s.btnPrinc,marginTop:12}} onClick={()=>setEnviando(0)}>{t.cliEnvTodos} ({clientesFiltrados.length})</button>
                     :<div style={{marginTop:12,textAlign:"center"}}>
-                      <div style={{height:5,background:CA,borderRadius:6,overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:`${(enviando/todosClientes.length)*100}%`,background:VE,borderRadius:6,transition:"width .3s"}}/></div>
-                      <div style={{fontSize:12,color:MU,marginBottom:8}}>{enviando<todosClientes.length?`${t.cliEnviando} ${todosClientes[enviando]?.nome}... ${t.cliToque}`:t.cliTodos}</div>
-                      {enviando>=todosClientes.length&&<button style={{...s.btnPrinc,background:"transparent",border:`1px solid ${BL}`,color:MU}} onClick={()=>setEnviando(null)}>{t.cliFechar}</button>}
+                      <div style={{height:5,background:CA,borderRadius:6,overflow:"hidden",marginBottom:6}}><div style={{height:"100%",width:`${(enviando/clientesFiltrados.length)*100}%`,background:VE,borderRadius:6,transition:"width .3s"}}/></div>
+                      <div style={{fontSize:12,color:MU,marginBottom:8}}>{enviando<clientesFiltrados.length?`${t.cliEnviando} ${clientesFiltrados[enviando]?.nome}... ${t.cliToque}`:t.cliTodos}</div>
+                      {enviando>=clientesFiltrados.length&&<button style={{...s.btnPrinc,background:"transparent",border:`1px solid ${BL}`,color:MU}} onClick={()=>setEnviando(null)}>{t.cliFechar}</button>}
                     </div>
                   }
                 </>
-              }
+                ;
+              })()}
             </div>
-              </div>
-            }
-        </div>
-      )}
+                </div>
+                }
+          </div>
+        )}
 
         {aba==="caixa"&&(()=>{
           const hojeKey = getTorontoDate().toLocaleDateString("en-CA",{timeZone:"America/Toronto"});

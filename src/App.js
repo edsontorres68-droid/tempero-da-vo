@@ -77,6 +77,31 @@ const PRATOS_BASE = [
   {id:"p2",nome:"Bife acebolado", desc:"Arroz, feijão, salada e bife acebolado.",          preco:35,icon:"carne"},
 ];
 
+// Fotos reais dos pratos (arquivos ficam em /public/pratos/ no projeto).
+// Associadas por ID do prato — funciona mesmo se a Gi renomear o prato depois,
+// e continua funcionando mesmo com o catálogo editado (não depende do texto do nome).
+const FOTOS_PRATOS = {
+  bife_aceb:      "/pratos/bife-acebolado.jpg",
+  peito_grelhado: "/pratos/frango-grelhado.jpg",
+  carne_panela:   "/pratos/carne-panela.jpg",
+  carne_moida:    "/pratos/carne-moida.jpg",
+  porco_aceb:     "/pratos/porco-acebolado.jpg",
+  bife_empanado:  "/pratos/bife-milanesa.jpg",
+  almondega:      "/pratos/almondegas.jpg",
+  linguicinha:    "/pratos/linguica-acebolada.jpg",
+  strog_frango:   "/pratos/strogonoff-frango.jpg",
+  frango_batata:  "/pratos/frango-com-batata.jpg",
+  costelinha:     "/pratos/costelinha-suina.jpg",
+  lombo:          "/pratos/lombo-acebolado.jpg",
+  picadinho:      "/pratos/picadinho-pimentao.jpg",
+  frango_assado:  "/pratos/frango-assado.jpg",
+  costela_mand:   "/pratos/costela-mandioca.jpg",
+  frango_quiabo:  "/pratos/frango-quiabo.jpg",
+  strog_carne:    "/pratos/strogonoff-carne.jpg",
+  escond_carne:   "/pratos/escondidinho-carne.jpg",
+  bife_vermelho:  "/pratos/carne-legumes.jpg",
+};
+
 const CARDAPIO_PADRAO = {
   carne:[
     {id:"bife_aceb",       nome:"Bife acebolado",                         icon:"carne"},
@@ -622,6 +647,15 @@ const IcoCarne = ({size=44,tipo="carne"})=>{
   );
 };
 
+// Mostra a foto real do prato quando existe (FOTOS_PRATOS); senão cai pro ícone ilustrado.
+const DishImg = ({id,tipo,size=44,radius})=>{
+  const foto = FOTOS_PRATOS[id];
+  if(foto){
+    return <img src={foto} alt="" style={{width:size,height:size,borderRadius:radius??size/2,objectFit:"cover",display:"block",flexShrink:0}}/>;
+  }
+  return <IcoCarne tipo={tipo} size={size}/>;
+};
+
 function Tab({icon,label,ativo,onClick,badge}) {
   return (
     <button onClick={onClick} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,border:"none",background:"transparent",padding:"5px 0",color:ativo?O:MU,cursor:"pointer"}}>
@@ -1110,7 +1144,7 @@ function AppInner() {
               <div style={{display:"flex",gap:8}}>
                 {PRATOS.map((p,i)=>(
                   <div key={i} style={{...s.pratoVis,padding:"7px 6px"}}>
-                    <IcoCarne tipo={p.icon} size={30}/>
+                    <DishImg id={p.id} tipo={p.icon} size={30}/>
                     <div style={{fontSize:10,fontWeight:600,textAlign:"center",color:TI,lineHeight:1.2,wordBreak:"break-word"}}>{p.nome}</div>
                     <div style={{fontSize:10,color:O,fontWeight:700}}>{fmt(p.preco)}</div>
                   </div>
@@ -1130,7 +1164,7 @@ function AppInner() {
               return (
                 <div key={p.id} style={s.pratoCard}>
                   <div style={{display:"flex",gap:12,alignItems:"flex-start",padding:14}}>
-                    <div style={{flexShrink:0,width:84,height:84,borderRadius:"50%",background:"radial-gradient(circle at 35% 30%, #FFD9A0, #F5A623 62%, #E8963F)",boxShadow:"0 3px 10px rgba(245,166,35,0.45)",display:"flex",alignItems:"center",justifyContent:"center"}}><IcoCarne tipo={p.icon} size={70}/></div>
+                    <div style={{flexShrink:0,width:84,height:84,borderRadius:"50%",background:"radial-gradient(circle at 35% 30%, #FFD9A0, #F5A623 62%, #E8963F)",boxShadow:"0 3px 10px rgba(245,166,35,0.45)",display:"flex",alignItems:"center",justifyContent:"center"}}><DishImg id={p.id} tipo={p.icon} size={70}/></div>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontFamily:"'Dancing Script',cursive",fontWeight:700,fontSize:19,color:O,marginBottom:3,lineHeight:1.2}}>{p.nome}</div>
                       <div style={{fontSize:12,color:MU,lineHeight:1.5,marginBottom:5,wordBreak:"break-word"}}>{p.desc}</div>
@@ -1224,7 +1258,7 @@ function AppInner() {
                                   return (
                                     <button key={c.id} disabled={cheio} onClick={()=>toggleSelecaoDia(dia,c.id)}
                                       style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"6px 8px",border:esv?`2px solid ${O}`:`1px solid ${BL}`,borderRadius:9,background:esv?CA:"transparent",cursor:cheio?"default":"pointer",opacity:cheio?.4:1,marginBottom:3}}>
-                                      <IcoCarne tipo={c.icon} size={24}/>
+                                      <DishImg id={c.id} tipo={c.icon} size={24}/>
                                       <span style={{flex:1,textAlign:"left",fontSize:12,color:esv?O:TI}}>{c.nome}</span>
                                       {esv&&<span style={{color:O,fontWeight:700,fontSize:12}}>✓</span>}
                                     </button>
@@ -1266,7 +1300,7 @@ function AppInner() {
               :<>
                 {itens.map(i=>(
                   <div key={i.id} style={{...s.itemCart,marginBottom:10}}>
-                    <IcoCarne tipo={i.icon} size={42}/>
+                    <DishImg id={i.id} tipo={i.icon} size={42}/>
                     <div style={{flex:1}}>
                       <div style={{fontWeight:600,fontSize:13.5,color:TI,marginBottom:2}}>{i.nome}</div>
                       {i.e>0&&<div style={{fontSize:11,color:O,fontWeight:600}}>🥩 +{i.e*100}g {t.extraInfo}</div>}
@@ -1595,7 +1629,7 @@ function AppInner() {
                       const base=dishById(p0.id); const p={...p0,nome:base?.nome||p0.nome,icon:base?.icon||p0.icon};
                       return (
                         <div key={i} style={s.pratoVis}>
-                          <IcoCarne tipo={p.icon} size={40}/>
+                          <DishImg id={p.id} tipo={p.icon} size={40}/>
                           <div style={{fontSize:10.5,fontWeight:600,textAlign:"center",color:TI,wordBreak:"break-word",lineHeight:1.3}}>{p.nome}</div>
                           <div style={{fontSize:10.5,color:O,fontWeight:700}}>{fmt(p.preco)}</div>
                         </div>
@@ -2037,7 +2071,7 @@ function AppInner() {
                   <div style={{fontSize:11,fontWeight:700,color:OE,padding:"8px 0 4px"}}>{g.label}</div>
                   {g.lista.map(c=>(
                     <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,padding:"6px 0",borderBottom:"1px solid #E7D9BC"}}>
-                      <IcoCarne tipo={c.icon} size={26}/>
+                      <DishImg id={c.id} tipo={c.icon} size={26}/>
                       <span style={{fontSize:13,color:"#2A1F00"}}>{c.nome}</span>
                     </div>
                   ))}
@@ -2078,7 +2112,7 @@ function AppInner() {
                           {g.lista.map(c=>(
                             <button key={c.id} onClick={()=>setMenuTemp(m=>({...m,pratosPorDia:{...m.pratosPorDia,[dia]:m.pratosPorDia[dia].map((p,i)=>i===idx?{...p,id:c.id,nome:c.nome,icon:c.icon}:p)}}))}
                               style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"6px 8px",border:prato.id===c.id?`2px solid ${OE}`:`1px solid #8B5A2B44`,borderRadius:8,background:prato.id===c.id?"#F5EDD5":"transparent",cursor:"pointer",marginBottom:3,color:prato.id===c.id?OE:"#6B5040"}}>
-                              <IcoCarne tipo={c.icon} size={22}/>
+                              <DishImg id={c.id} tipo={c.icon} size={22}/>
                               <span style={{flex:1,textAlign:"left",fontSize:12}}>{c.nome}</span>
                               {prato.id===c.id&&<span style={{color:OE,fontWeight:700,fontSize:13}}>✓</span>}
                             </button>

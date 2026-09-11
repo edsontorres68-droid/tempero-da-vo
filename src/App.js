@@ -220,7 +220,7 @@ const T = {
     preNomePh:"Nome do cliente",preCadastradoTag:"pré-cadastrado",
     buscarAgenda:"Buscar da agenda de contatos",
     buscarClientePh:"🔍 Buscar por nome ou telefone",buscarClienteVazio:"Nenhum cliente encontrado",
-    clienteReconhecido:"Cliente reconhecido! Nome preenchido automaticamente.",
+    clienteReconhecido:"Cliente reconhecido! Dados preenchidos automaticamente.",
     aguardandoConf:"Aguardando confirmação da cozinha",
     ativarNotif:"Ativar som e aviso de novo pedido",bipNovoPedido:"🔔 Novo pedido chegou no Tempero da Vó!",
     prevLabel:"⏱ Previsão:",
@@ -354,7 +354,7 @@ const T = {
     preNomePh:"Customer name",preCadastradoTag:"pre-registered",
     buscarAgenda:"Pick from contacts",
     buscarClientePh:"🔍 Search by name or phone",buscarClienteVazio:"No customer found",
-    clienteReconhecido:"Customer recognized! Name filled in automatically.",
+    clienteReconhecido:"Customer recognized! Info filled in automatically.",
     aguardandoConf:"Waiting for kitchen confirmation",
     ativarNotif:"Enable new order sound and alert",bipNovoPedido:"🔔 New order at Tempero da Vó!",
     prevLabel:"⏱ ETA:",
@@ -846,6 +846,7 @@ function AppInner() {
   const [clientes,setClientes]   = useState([]);
   const [clientesAvulso,setClientesAvulso] = useState({});
   const [clientesPreCadastro,setClientesPreCadastro] = useState({});
+  const [clientesCadastroCompleto,setClientesCadastroCompleto] = useState({});
   const [novoPreNome,setNovoPreNome] = useState("");
   const [novoPreTel,setNovoPreTel] = useState("");
   const [buscaCliente,setBuscaCliente] = useState("");
@@ -916,6 +917,11 @@ function AppInner() {
     const unsubPreCadastro = onSnapshot(doc(db,"estado","clientesPreCadastro"), snap=>{
       setClientesPreCadastro(snap.exists()?snap.data():{});
     }, ()=>{});
+    const unsubCadastroCompleto = onSnapshot(collection(db,"clientesCadastro"), snap=>{
+      const mapa={};
+      snap.docs.forEach(d=>{ mapa[d.id]=d.data(); });
+      setClientesCadastroCompleto(mapa);
+    }, ()=>{});
     const unsubPedidos = onSnapshot(collection(db,"pedidos"), snap=>{
       const lista=snap.docs.map(d=>d.data());
       lista.sort((a,b)=>(b.id||0)-(a.id||0));
@@ -937,7 +943,7 @@ function AppInner() {
       }
       setVotosCarregados(true);
     }, ()=>{ setVotosCarregados(true); });
-    return ()=>{ unsubMenu(); unsubCardapio(); unsubClientesAvulso(); unsubPreCadastro(); unsubPedidos(); unsubVotos(); };
+    return ()=>{ unsubMenu(); unsubCardapio(); unsubClientesAvulso(); unsubPreCadastro(); unsubCadastroCompleto(); unsubPedidos(); unsubVotos(); };
   },[]);
   useEffect(()=>{
     // Reinicia o "já votei" deste celular quando começa um novo ciclo de votação
@@ -1163,6 +1169,7 @@ function AppInner() {
     const tel=form.tel.replace(/\D/g,"");
     setClientes(p=>p.find(c=>c.tel.replace(/\D/g,"")===tel)?p:[...p,{id:Date.now(),nome:form.nome,tel:form.tel}]);
     try{ localStorage.setItem("dadosCliente",JSON.stringify({nome:form.nome,tel:form.tel,end:form.end,endApto:form.endApto,endBuzzer:form.endBuzzer,endCity:form.endCity,endProv:form.endProv,endCep:form.endCep})); }catch(_){}
+    setDoc(doc(db,"clientesCadastro",tel),{nome:form.nome,tel:form.tel,end:form.end||"",endApto:form.endApto||"",endBuzzer:form.endBuzzer||"",endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||""}).catch(()=>{});
     const novo={id:Date.now(),num,cliente:form.nome,tel:form.tel,dia:diaPedido,avulso,itens:itens.map(i=>`${i.qty}x ${i.nome}`).join(", "),sub,frete,gorjeta:gVal,total,tipo:form.tipo,end:form.end,endApto:form.endApto||"",endBuzzer:form.endBuzzer||"",endCity:form.endCity||"",endProv:form.endProv||"",endCep:form.endCep||"",hora:new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),previsao:hr,alergia:form.alergia,alergiaDesc:form.alergiaDesc,ciente:false,pago:false,entregue:false,comentario:""};
     setPedidos(p=>[novo,...p]);setNovos(n=>n+1);
     setDoc(doc(db,"pedidos",String(novo.id)),novo).catch(()=>{});
@@ -2205,6 +2212,12 @@ function AppInner() {
               onBlur={()=>{
                 const key=form.tel.replace(/\D/g,"");
                 if(key.length>=10){
+                  const completo=clientesCadastroCompleto[key];
+                  if(completo){
+                    setForm(f=>({...f,nome:completo.nome,end:completo.end||"",endApto:completo.endApto||"",endBuzzer:completo.endBuzzer||"",endCity:completo.endCity||"",endProv:completo.endProv||f.endProv,endCep:completo.endCep||""}));
+                    setClienteReconhecido(true);
+                    return;
+                  }
                   const achado=clientesPreCadastro[key]||todosClientes.find(c=>c.id===key);
                   if(achado){ setForm(f=>({...f,nome:achado.nome})); setClienteReconhecido(true); }
                   else setClienteReconhecido(false);
